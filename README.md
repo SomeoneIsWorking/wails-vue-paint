@@ -1,5 +1,7 @@
 # Wails Vue Paint App
 
+#### Mostly vibe coded (with heavy guidance)
+
 A desktop application built with Wails (Go + Vue 3 + TypeScript) that allows you to quickly paste images from clipboard, annotate them with text, lines, arrows, and shapes, then export the result.
 
 ## Features

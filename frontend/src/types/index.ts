@@ -1,0 +1,71 @@
+export type ToolType = 
+  | 'select'
+  | 'text'
+  | 'draw'
+  | 'line'
+  | 'rectangle'
+  | 'arrow'
+  | 'eraser'
+
+export type SelectionMode = 'intersect' | 'cover' | 'half'
+
+export interface DrawingState {
+  tool: ToolType
+  color: string
+  lineWidth: number
+  fontSize: number
+  fontFamily: string
+  isDrawing: boolean
+  startX: number
+  startY: number
+}
+
+export interface Point {
+  x: number
+  y: number
+}
+
+export interface Bounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface Shape {
+  id: string
+  type: 'line' | 'rectangle' | 'arrow' | 'text' | 'draw' | 'circle' | 'image'
+  color: string
+  lineWidth: number
+  bounds: Bounds
+  // Shape-specific properties
+  startPoint?: Point
+  endPoint?: Point
+  points?: Point[]  // For freehand drawing
+  pathData?: string  // SVG path data for freehand
+  text?: string
+  fontSize?: number
+  fontFamily?: string
+  // Image properties
+  imageData?: string  // Base64 image data
+  imageWidth?: number
+  imageHeight?: number
+  // SVG element reference
+  element?: SVGElement
+}
+
+export interface Annotation {
+  id: string
+  type: ToolType
+  points: Point[]
+  color: string
+  lineWidth?: number
+  text?: string
+  fontSize?: number
+  fontFamily?: string
+}
+
+export interface ExportOptions {
+  format: 'png' | 'jpeg' | 'webp'
+  quality: number  // 0-1 for jpeg/webp
+}

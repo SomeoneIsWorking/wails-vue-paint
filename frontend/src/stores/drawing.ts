@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { ToolType, Shape, SelectionMode } from '../types'
-import { boundsIntersect, boundsContainsBounds, calculateBoundsOverlapPercentage } from '../utils/shapeHelpers'
+import { boundsIntersect, boundsContainsBounds, calculateBoundsOverlapPercentage, serializeShapes } from '../utils/shapeHelpers'
 
 // @ts-ignore
 import { SaveState, LoadState } from '../../wailsjs/go/main/App'
@@ -89,12 +89,17 @@ export const useDrawingStore = defineStore('drawing', () => {
     currentColor.value = color
     // Update all selected shapes
     if (hasSelection.value) {
+      let hasUpdates = false
       selectedShapeIds.value.forEach(id => {
         const shape = shapes.value.find(s => s.id === id)
         if (shape) {
           shape.color = color
+          hasUpdates = true
         }
       })
+      if (hasUpdates) {
+        saveStateToBackend()
+      }
     }
   }
   
@@ -112,12 +117,14 @@ export const useDrawingStore = defineStore('drawing', () => {
   
   function addShape(shape: Shape) {
     shapes.value.push(shape)
+    saveStateToBackend()
   }
   
   function updateShape(shapeId: string, updates: Partial<Shape>) {
     const shape = shapes.value.find(s => s.id === shapeId)
     if (shape) {
       Object.assign(shape, updates)
+      saveStateToBackend()
     }
   }
   
@@ -125,12 +132,14 @@ export const useDrawingStore = defineStore('drawing', () => {
     const index = shapes.value.findIndex(s => s.id === shapeId)
     if (index !== -1) {
       shapes.value.splice(index, 1)
+      saveStateToBackend()
     }
   }
   
   function deleteSelectedShapes() {
     shapes.value = shapes.value.filter(shape => !selectedShapeIds.value.includes(shape.id))
     selectedShapeIds.value = []
+    saveStateToBackend()
   }
   
   function selectShape(shapeId: string, addToSelection = false) {
@@ -181,6 +190,7 @@ export const useDrawingStore = defineStore('drawing', () => {
   function clearShapes() {
     shapes.value = []
     selectedShapeIds.value = []
+    saveStateToBackend()
   }
   
   function startDragSelection(x: number, y: number) {
@@ -261,7 +271,7 @@ export const useDrawingStore = defineStore('drawing', () => {
   async function saveStateToBackend() {
     try {
       const state = {
-        shapes: shapes.value,
+        shapes: serializeShapes(shapes.value), // Serialize to remove element references
         currentTool: currentTool.value,
         currentColor: currentColor.value,
         lineWidth: lineWidth.value,
@@ -298,11 +308,6 @@ export const useDrawingStore = defineStore('drawing', () => {
       console.error('Failed to load state:', error)
     }
   }
-
-  // Watch for changes and auto-save
-  watch([shapes, currentTool, currentColor, lineWidth, fontSize, fontFamily, selectionMode, panOffset, zoomLevel], () => {
-    saveStateToBackend()
-  }, { deep: true })
   
   return {
     // State

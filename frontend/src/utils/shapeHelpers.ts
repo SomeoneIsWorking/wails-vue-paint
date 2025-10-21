@@ -1,7 +1,16 @@
 import type { Shape, Point, Bounds } from '@/types'
+import { omit } from 'lodash-es'
 
 export function generateShapeId(): string {
   return `shape-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
+export function serializeShape(shape: Shape): Omit<Shape, 'element'> {
+  return omit(shape, 'element')
+}
+
+export function serializeShapes(shapes: Shape[]): Omit<Shape, 'element'>[] {
+  return shapes.map(serializeShape)
 }
 
 export function calculateBounds(shape: Shape): Bounds {
@@ -43,11 +52,15 @@ export function calculateBounds(shape: Shape): Bounds {
   }
 
   if (shape.text && shape.startPoint && shape.fontSize) {
+    const lines = shape.text.split('\n')
+    const lineHeight = shape.fontSize * 1.2
+    const maxLineLength = Math.max(...lines.map(line => line.length))
+    
     return {
       x: shape.startPoint.x,
       y: shape.startPoint.y - shape.fontSize,
-      width: shape.text.length * shape.fontSize * 0.6,
-      height: shape.fontSize
+      width: maxLineLength * shape.fontSize * 0.6,
+      height: lines.length * lineHeight
     }
   }
 

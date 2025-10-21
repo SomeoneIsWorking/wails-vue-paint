@@ -192,7 +192,7 @@ onUnmounted(() => {
       :class="[
         'flex justify-between items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50',
         isMac ? 'h-[32px] px-3 pl-20' : 'h-[44px] px-5',
-        '--wails-draggable',
+        'wails-draggable',
       ]"
     >
       <h1
@@ -243,14 +243,14 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.--wails-draggable {
+.wails-draggable {
   -webkit-app-region: drag;
   -webkit-user-select: none;
   user-select: none;
   --wails-draggable: drag;
 }
 
-.--wails-draggable button {
+.wails-draggable button {
   -webkit-app-region: no-drag;
 }
 </style>

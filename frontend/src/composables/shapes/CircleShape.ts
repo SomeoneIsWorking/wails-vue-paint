@@ -40,6 +40,24 @@ export class CircleShape extends Shape<CircleShapeData> {
     this.endPoint.value.y += deltaY;
   }
 
+  getDraggablePoints(): Point[] {
+    return [this.startPoint.value, this.endPoint.value];
+  }
+
+  updateDraggablePoint(index: number, newPoint: Point): void {
+    if (index === 0) {
+      // Move center
+      const deltaX = newPoint.x - this.startPoint.value.x;
+      const deltaY = newPoint.y - this.startPoint.value.y;
+      this.startPoint.value = newPoint;
+      this.endPoint.value.x += deltaX;
+      this.endPoint.value.y += deltaY;
+    } else if (index === 1) {
+      // Resize by moving circumference point
+      this.endPoint.value = newPoint;
+    }
+  }
+
   protected getSerializableProperties() {
     return {
       type: "circle" as const,

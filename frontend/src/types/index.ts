@@ -6,6 +6,7 @@ export type ToolType =
   | 'rectangle'
   | 'arrow'
   | 'eraser'
+  | 'pointEdit'
 
 export type SelectionMode = 'intersect' | 'cover' | 'half'
 

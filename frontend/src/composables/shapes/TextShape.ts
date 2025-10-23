@@ -43,6 +43,16 @@ export class TextShape extends Shape<TextShapeData> {
     this.startPoint.value.y += deltaY;
   }
 
+  getDraggablePoints(): Point[] {
+    return [this.startPoint.value];
+  }
+
+  updateDraggablePoint(index: number, newPoint: Point): void {
+    if (index === 0) {
+      this.startPoint.value = newPoint;
+    }
+  }
+
   protected getSerializableProperties() {
     return {
       type: "text" as const,

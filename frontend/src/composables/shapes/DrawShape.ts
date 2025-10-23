@@ -42,6 +42,16 @@ export class DrawShape extends Shape<DrawShapeData> {
     }
   }
 
+  getDraggablePoints(): Point[] {
+    return this.points.value;
+  }
+
+  updateDraggablePoint(index: number, newPoint: Point): void {
+    if (index >= 0 && index < this.points.value.length) {
+      this.points.value[index] = newPoint;
+    }
+  }
+
   protected getSerializableProperties() {
     return {
       type: "draw" as const,

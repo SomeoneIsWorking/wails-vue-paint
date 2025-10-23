@@ -40,6 +40,43 @@ export class ImageShape extends Shape<ImageShapeData> {
     this.startPoint.value.y += deltaY;
   }
 
+  getDraggablePoints(): Point[] {
+    const x = this.startPoint.value.x;
+    const y = this.startPoint.value.y;
+    const w = this.imageWidth.value;
+    const h = this.imageHeight.value;
+    return [
+      { x, y }, // top-left
+      { x: x + w, y }, // top-right
+      { x: x + w, y: y + h }, // bottom-right
+      { x, y: y + h }, // bottom-left
+    ];
+  }
+
+  updateDraggablePoint(index: number, newPoint: Point): void {
+    const currentX = this.startPoint.value.x;
+    const currentY = this.startPoint.value.y;
+    const currentW = this.imageWidth.value;
+    const currentH = this.imageHeight.value;
+
+    if (index === 0) { // top-left
+      this.startPoint.value = newPoint;
+      this.imageWidth.value = currentW + (currentX - newPoint.x);
+      this.imageHeight.value = currentH + (currentY - newPoint.y);
+    } else if (index === 1) { // top-right
+      this.startPoint.value.y = newPoint.y;
+      this.imageWidth.value = newPoint.x - currentX;
+      this.imageHeight.value = currentH + (currentY - newPoint.y);
+    } else if (index === 2) { // bottom-right
+      this.imageWidth.value = newPoint.x - currentX;
+      this.imageHeight.value = newPoint.y - currentY;
+    } else if (index === 3) { // bottom-left
+      this.startPoint.value.x = newPoint.x;
+      this.imageHeight.value = newPoint.y - currentY;
+      this.imageWidth.value = currentW + (currentX - newPoint.x);
+    }
+  }
+
   protected getSerializableProperties() {
     return {
       type: "image" as const,

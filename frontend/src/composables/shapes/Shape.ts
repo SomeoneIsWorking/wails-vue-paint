@@ -1,5 +1,5 @@
 import { ref, type Ref, type ComputedRef } from "vue";
-import type { Bounds } from "@/types";
+import type { Bounds, Point } from "@/types";
 import { ShapeData } from "@/types/shapeData";
 
 export abstract class Shape<T extends ShapeData = any> {
@@ -27,6 +27,10 @@ export abstract class Shape<T extends ShapeData = any> {
   }
 
   abstract move(deltaX: number, deltaY: number): void;
+
+  abstract getDraggablePoints(): Point[];
+
+  abstract updateDraggablePoint(index: number, newPoint: Point): void;
 
   serialize(): T {
     return {

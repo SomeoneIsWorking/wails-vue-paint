@@ -40,6 +40,18 @@ export class ArrowShape extends Shape<ArrowShapeData> {
     this.endPoint.value.y += deltaY;
   }
 
+  getDraggablePoints(): Point[] {
+    return [this.startPoint.value, this.endPoint.value];
+  }
+
+  updateDraggablePoint(index: number, newPoint: Point): void {
+    if (index === 0) {
+      this.startPoint.value = newPoint;
+    } else if (index === 1) {
+      this.endPoint.value = newPoint;
+    }
+  }
+
   protected getSerializableProperties() {
     return {
       type: "arrow" as const,

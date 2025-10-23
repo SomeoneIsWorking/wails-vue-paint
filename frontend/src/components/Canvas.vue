@@ -67,6 +67,40 @@ const getSVGCoordinates = (event: MouseEvent) => {
   return { x: adjustedX, y: adjustedY };
 };
 
+const handlePointEditMouseDown = (coords: Point) => {
+  const selectedShape = store.pointEditSelectedShape;
+  if (selectedShape) {
+    // Check if clicking on a draggable point
+    const points = selectedShape.getDraggablePoints();
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      const distance = Math.sqrt((coords.x - point.x) ** 2 + (coords.y - point.y) ** 2);
+      if (distance <= 10 / store.zoomLevel) { // 10px hit radius, adjusted for zoom
+        store.setDraggedPointIndex(i);
+        return;
+      }
+    }
+    // Not on a point, deselect shape
+    store.setPointEditSelectedShape(null);
+  } else {
+    // No shape selected, try to select one
+    for (const shape of store.shapes) {
+      if (coords.x >= shape.bounds.x && coords.x <= shape.bounds.x + shape.bounds.width &&
+          coords.y >= shape.bounds.y && coords.y <= shape.bounds.y + shape.bounds.height) {
+        store.setPointEditSelectedShape(shape.id);
+        break;
+      }
+    }
+  }
+};
+
+const handlePointDragging = (coords: Point) => {
+  if (store.pointEditSelectedShape && store.draggedPointIndex !== null) {
+    store.pointEditSelectedShape.updateDraggablePoint(store.draggedPointIndex, coords);
+    store.saveStateToBackend();
+  }
+};
+
 const isCurrentlyDrawing = ref(false);
 
 const handleMouseDown = (event: MouseEvent) => {
@@ -87,6 +121,11 @@ const handleMouseDown = (event: MouseEvent) => {
   }
 
   const coords = getSVGCoordinates(event);
+
+  if (store.currentTool === "pointEdit") {
+    handlePointEditMouseDown(coords);
+    return;
+  }
 
   if (store.currentTool === "text") {
     // Show text input at click position
@@ -118,6 +157,12 @@ const handleMouseMove = (event: MouseEvent) => {
     return;
   }
 
+  if (store.currentTool === "pointEdit" && store.draggedPointIndex !== null && store.pointEditSelectedShape) {
+    const coords = getSVGCoordinates(event);
+    handlePointDragging(coords);
+    return;
+  }
+
   if (
     !isCurrentlyDrawing.value &&
     !store.isDraggingShapes &&
@@ -133,6 +178,12 @@ const handleMouseUp = () => {
   if (store.isPanning) {
     store.stopPanning();
     panStartPoint.value = null;
+    return;
+  }
+
+  // Stop dragging point
+  if (store.draggedPointIndex !== null) {
+    store.setDraggedPointIndex(null);
     return;
   }
 
@@ -393,6 +444,21 @@ onMounted(() => {
           fill="none"
           pointer-events="none"
         />
+
+        <!-- Draggable points for point edit -->
+        <g v-if="store.currentTool === 'pointEdit' && store.pointEditSelectedShape">
+          <circle
+            v-for="(point, index) in store.pointEditSelectedShape.getDraggablePoints()"
+            :key="'point-' + index"
+            :cx="point.x"
+            :cy="point.y"
+            r="5"
+            fill="#3B82F6"
+            stroke="#FFFFFF"
+            stroke-width="2"
+            style="cursor: move;"
+          />
+        </g>
       </g>
     </svg>
 

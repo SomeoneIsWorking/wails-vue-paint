@@ -54,6 +54,12 @@ export class DrawShape extends Shape<DrawShapeData> {
     }
   }
 
+  removeDraggablePoint(index: number): void {
+    if (index >= 0 && index < this.points.value.length) {
+      this.points.value.splice(index, 1);
+    }
+  }
+
   protected getSerializableProperties() {
     return {
       type: "draw" as const,

@@ -18,24 +18,6 @@ export function isPointInBounds(point: Point, bounds: Bounds): boolean {
   )
 }
 
-export function boundsIntersect(bounds1: Bounds, bounds2: Bounds): boolean {
-  return !(
-    bounds1.x + bounds1.width < bounds2.x ||
-    bounds1.x > bounds2.x + bounds2.width ||
-    bounds1.y + bounds1.height < bounds2.y ||
-    bounds1.y > bounds2.y + bounds2.height
-  )
-}
-
-export function boundsContainsBounds(outer: Bounds, inner: Bounds): boolean {
-  return (
-    inner.x >= outer.x &&
-    inner.y >= outer.y &&
-    inner.x + inner.width <= outer.x + outer.width &&
-    inner.y + inner.height <= outer.y + outer.height
-  )
-}
-
 export function calculateBoundsOverlapPercentage(bounds1: Bounds, bounds2: Bounds): number {
   const overlapX = Math.max(0,
     Math.min(bounds1.x + bounds1.width, bounds2.x + bounds2.width) -

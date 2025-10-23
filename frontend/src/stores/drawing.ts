@@ -2,8 +2,6 @@ import { defineStore } from "pinia";
 import { ref, computed, shallowRef } from "vue";
 import type { ToolType, SelectionMode } from "../types";
 import {
-  boundsIntersect,
-  boundsContainsBounds,
   calculateBoundsOverlapPercentage,
   serializeShapes,
 } from "../utils/shapeHelpers";
@@ -16,6 +14,7 @@ export const useDrawingStore = defineStore("drawing", () => {
   // Tool state
   const currentTool = ref<ToolType>("select");
   const selectionMode = ref<SelectionMode>("half");
+  const selectionTolerance = ref<number>(50);
 
   // Drawing properties
   const currentColor = ref<string | undefined>("#000000");
@@ -37,6 +36,7 @@ export const useDrawingStore = defineStore("drawing", () => {
 
   // Point editing state
   const draggedPointIndex = ref<number | null>(null);
+  const selectedPointIndex = ref<number | null>(null);
 
   // Pan and zoom state
   const panOffset = ref({ x: 0, y: 0 });
@@ -62,11 +62,11 @@ export const useDrawingStore = defineStore("drawing", () => {
     const selected = selectedShapes.value;
     if (selected.length === 0) {
       // Set to defaults when no selection
-      currentColor.value = "#000000";
-      lineWidth.value = 2;
-      fontSize.value = 16;
-      fontFamily.value = "Arial";
-      smoothing.value = 2;
+      currentColor.value ||= "#000000";
+      lineWidth.value ||= 2;
+      fontSize.value ||= 16;
+      fontFamily.value ||= "Arial";
+      smoothing.value ||= 2;
       return;
     }
     currentColor.value = getCommonValue(selected, "color");
@@ -121,22 +121,10 @@ export const useDrawingStore = defineStore("drawing", () => {
     selectionBounds: { x: number; y: number; width: number; height: number }
   ): boolean {
     const shapeBounds = shape.bounds;
-
-    switch (selectionMode.value) {
-      case "intersect":
-        return boundsIntersect(shapeBounds, selectionBounds);
-
-      case "cover":
-        return boundsContainsBounds(selectionBounds, shapeBounds);
-
-      case "half":
-        return (
-          calculateBoundsOverlapPercentage(shapeBounds, selectionBounds) >= 0.5
-        );
-
-      default:
-        return false;
-    }
+    const requiredOverlap = (100 - selectionTolerance.value) / 100;
+    return (
+      calculateBoundsOverlapPercentage(shapeBounds, selectionBounds) >= requiredOverlap
+    );
   }
 
   // Actions
@@ -158,6 +146,10 @@ export const useDrawingStore = defineStore("drawing", () => {
 
   function setSelectionMode(mode: SelectionMode) {
     selectionMode.value = mode;
+  }
+
+  function setSelectionTolerance(tolerance: number) {
+    selectionTolerance.value = tolerance;
   }
 
   function updateSelectedShapes(property: string, value: any) {
@@ -344,11 +336,16 @@ export const useDrawingStore = defineStore("drawing", () => {
   function setPointEditSelectedShape(shapeId: string | null) {
     selectedShapeIds.value = shapeId ? [shapeId] : [];
     draggedPointIndex.value = null;
+    selectedPointIndex.value = null;
     syncCurrentProperties();
   }
 
   function setDraggedPointIndex(index: number | null) {
     draggedPointIndex.value = index;
+  }
+
+  function setSelectedPointIndex(index: number | null) {
+    selectedPointIndex.value = index;
   }
 
   function fitView(viewportWidth: number, viewportHeight: number) {
@@ -406,10 +403,12 @@ export const useDrawingStore = defineStore("drawing", () => {
         fontFamily: fontFamily.value,
         smoothing: smoothing.value,
         selectionMode: selectionMode.value,
+        selectionTolerance: selectionTolerance.value,
         selectedShapeIds: selectedShapeIds.value,
         panOffset: panOffset.value,
         zoomLevel: zoomLevel.value,
         draggedPointIndex: draggedPointIndex.value,
+        selectedPointIndex: selectedPointIndex.value,
       };
       await SaveState(JSON.stringify(state));
     } catch (error) {
@@ -426,7 +425,19 @@ export const useDrawingStore = defineStore("drawing", () => {
         shapes.value = state.shapes
           ? state.shapes.map(createShapeFromData)
           : [];
-        console.log("State loaded successfully");
+        currentTool.value = state.currentTool || "select";
+        currentColor.value = state.currentColor || "#000000";
+        lineWidth.value = state.lineWidth || 2;
+        fontSize.value = state.fontSize || 16;
+        fontFamily.value = state.fontFamily || "Arial";
+        smoothing.value = state.smoothing || 2;
+        selectionMode.value = state.selectionMode || "half";
+        selectionTolerance.value = state.selectionTolerance ?? 50;
+        selectedShapeIds.value = state.selectedShapeIds || [];
+        panOffset.value = state.panOffset || { x: 0, y: 0 };
+        zoomLevel.value = state.zoomLevel || 1;
+        draggedPointIndex.value = state.draggedPointIndex || null;
+        selectedPointIndex.value = state.selectedPointIndex || null;
       }
     } catch (error) {
       console.error("Failed to load state:", error);
@@ -437,6 +448,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     // State
     currentTool,
     selectionMode,
+    selectionTolerance,
     currentColor,
     lineWidth,
     fontSize,
@@ -453,6 +465,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     zoomLevel,
     isPanning,
     draggedPointIndex,
+    selectedPointIndex,
 
     // Computed
     selectedShapes,
@@ -464,6 +477,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     // Actions
     setTool,
     setSelectionMode,
+    setSelectionTolerance,
     setColor,
     setLineWidth,
     setFontSize,
@@ -489,6 +503,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     loadStateFromBackend,
     setPointEditSelectedShape,
     setDraggedPointIndex,
+    setSelectedPointIndex,
     fitView,
     saveStateToBackend,
   };

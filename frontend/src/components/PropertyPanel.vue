@@ -31,6 +31,10 @@ const showFontOptions = computed(
 
 const showShapeProperties = computed(() => store.hasSelection);
 
+const showSelectionTolerance = computed(
+  () => store.currentTool === "select" && !store.hasSelection
+);
+
 const updateSmoothing = (value: number) => {
   store.setSmoothing(value);
 };
@@ -127,13 +131,27 @@ const fontFamilies = [
       </select>
     </template>
 
-    <!-- Default message when Select tool is active and nothing is selected -->
-    <p
-      v-if="store.currentTool === 'select' && !showShapeProperties"
-      class="text-xs text-gray-500 dark:text-gray-400 m-0"
-    >
-      Click on a shape to select and edit it
-    </p>
+    <!-- Selection Tolerance for Select tool when nothing selected -->
+    <div v-if="showSelectionTolerance" class="flex items-center gap-2">
+      <label
+        class="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap"
+      >
+        Tolerance:
+      </label>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        :value="store.selectionTolerance ?? 50"
+        @input="
+          store.setSelectionTolerance(Number(($event.target as HTMLInputElement).value))
+        "
+        class="input-range w-32"
+      />
+      <span class="text-xs text-gray-600 dark:text-gray-400 w-7">
+        {{ store.selectionTolerance === undefined ? "?" : store.selectionTolerance }}
+      </span>
+    </div>
 
     <!-- Info about selected shapes -->
     <p

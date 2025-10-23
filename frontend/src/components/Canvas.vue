@@ -77,6 +77,7 @@ const handlePointEditMouseDown = (coords: Point) => {
       const point = points[i];
       const distance = Math.sqrt((coords.x - point.x) ** 2 + (coords.y - point.y) ** 2);
       if (distance <= 10 / store.zoomLevel) { // 10px hit radius, adjusted for zoom
+        store.setSelectedPointIndex(i);
         store.setDraggedPointIndex(i);
         return;
       }
@@ -457,7 +458,7 @@ onMounted(async () => {
             :cx="point.x"
             :cy="point.y"
             r="5"
-            fill="#3B82F6"
+            :fill="index === store.selectedPointIndex ? '#FF0000' : '#3B82F6'"
             stroke="#FFFFFF"
             stroke-width="2"
             style="cursor: move;"

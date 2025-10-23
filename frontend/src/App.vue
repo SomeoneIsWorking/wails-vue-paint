@@ -6,6 +6,7 @@ import ColorPicker from "./components/ColorPicker.vue";
 import PropertyPanel from "./components/PropertyPanel.vue";
 import Footer from "./components/Footer.vue";
 import { useDrawingStore } from "./stores/drawing";
+import { DrawShape } from "./composables/shapes";
 
 // @ts-ignore
 import { SaveImage, GetClipboardImage } from "../wailsjs/go/main/App";
@@ -46,9 +47,14 @@ const handleClear = () => {
 };
 
 const handleKeyDown = (event: KeyboardEvent) => {
-  // Delete/Backspace to delete selected shapes
+  // Delete/Backspace to delete selected shapes or selected point
   if (event.key === "Backspace" || event.key === "Delete") {
-    if (store.hasSelection) {
+    if (store.selectedPointIndex !== null && store.pointEditSelectedShape instanceof DrawShape) {
+      event.preventDefault();
+      store.pointEditSelectedShape.removeDraggablePoint(store.selectedPointIndex);
+      store.setSelectedPointIndex(null);
+      store.saveStateToBackend();
+    } else if (store.hasSelection) {
       event.preventDefault();
       store.deleteSelectedShapes();
     }
@@ -60,19 +66,19 @@ const handleKeyDown = (event: KeyboardEvent) => {
     event.stopPropagation();
     handlePaste();
   }
-  // Command/Ctrl + Z for undo
-  else if (
-    (event.metaKey || event.ctrlKey) &&
-    event.key === "z" &&
-    !event.shiftKey
-  ) {
-    event.preventDefault();
-  }
   // Command/Ctrl + Shift + Z for redo
   else if (
     (event.metaKey || event.ctrlKey) &&
     event.shiftKey &&
     event.key === "z"
+  ) {
+    event.preventDefault();
+  }
+  // Command/Ctrl + Z for undo
+  else if (
+    (event.metaKey || event.ctrlKey) &&
+    event.key === "z" &&
+    !event.shiftKey
   ) {
     event.preventDefault();
   }

@@ -90,15 +90,47 @@ export const useDrawingStore = defineStore("drawing", () => {
     return previewIds;
   });
 
+  function isShapeInSelection(
+    shape: Shape,
+    selectionBounds: { x: number; y: number; width: number; height: number }
+  ): boolean {
+    const shapeBounds = shape.bounds;
+
+    switch (selectionMode.value) {
+      case "intersect":
+        return boundsIntersect(shapeBounds, selectionBounds);
+
+      case "cover":
+        return boundsContainsBounds(selectionBounds, shapeBounds);
+
+      case "half":
+        return (
+          calculateBoundsOverlapPercentage(shapeBounds, selectionBounds) >= 0.5
+        );
+
+      default:
+        return false;
+    }
+  }
+
   // Actions
   function setTool(tool: ToolType) {
-    currentTool.value = tool;
-    if (tool !== "select") {
-      clearSelection();
-    }
-    if (tool !== "pointEdit") {
-      pointEditSelectedShapeId.value = null;
-      draggedPointIndex.value = null;
+    currentTool.value = tool
+    switch (tool) {
+      case 'select':
+        // Keep selection
+        break
+      case 'pointEdit':
+        // Keep selection and set point edit shape if available
+        if (selectedShapeIds.value.length > 0) {
+          pointEditSelectedShapeId.value = selectedShapeIds.value[0]
+        }
+        break
+      default:
+        clearSelection()
+        pointEditSelectedShapeId.value = null
+        draggedPointIndex.value = null
+        break
     }
   }
 
@@ -180,8 +212,8 @@ export const useDrawingStore = defineStore("drawing", () => {
     }
 
     // Auto-switch to select tool when selection becomes non-empty
-    if (selectedShapeIds.value.length > 0 && currentTool.value !== "select") {
-      currentTool.value = "select";
+    if (selectedShapeIds.value.length > 0 && currentTool.value !== 'select' && currentTool.value !== 'pointEdit') {
+      currentTool.value = 'select'
     }
 
     // Sync color to first selected shape if single selection
@@ -203,11 +235,11 @@ export const useDrawingStore = defineStore("drawing", () => {
   }
 
   function selectMultipleShapes(shapeIds: string[]) {
-    selectedShapeIds.value = [...shapeIds];
-
+    selectedShapeIds.value = [...shapeIds]
+    
     // Auto-switch to select tool when selection becomes non-empty
-    if (selectedShapeIds.value.length > 0 && currentTool.value !== "select") {
-      currentTool.value = "select";
+    if (selectedShapeIds.value.length > 0 && currentTool.value !== 'select' && currentTool.value !== 'pointEdit') {
+      currentTool.value = 'select'
     }
   }
 
@@ -286,44 +318,54 @@ export const useDrawingStore = defineStore("drawing", () => {
     draggedPointIndex.value = index;
   }
 
-  function isShapeInSelection(
-    shape: Shape,
-    selectionBounds: { x: number; y: number; width: number; height: number }
-  ): boolean {
-    const shapeBounds = shape.bounds;
-
-    switch (selectionMode.value) {
-      case "intersect":
-        return boundsIntersect(shapeBounds, selectionBounds);
-
-      case "cover":
-        return boundsContainsBounds(selectionBounds, shapeBounds);
-
-      case "half":
-        return (
-          calculateBoundsOverlapPercentage(shapeBounds, selectionBounds) >= 0.5
-        );
-
-      default:
-        return false;
+  function fitView(viewportWidth: number, viewportHeight: number) {
+    if (shapes.value.length === 0) {
+      zoomLevel.value = 1;
+      panOffset.value = { x: 0, y: 0 };
+      return;
     }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const shape of shapes.value) {
+      const bounds = shape.bounds;
+      minX = Math.min(minX, bounds.x);
+      minY = Math.min(minY, bounds.y);
+      maxX = Math.max(maxX, bounds.x + bounds.width);
+      maxY = Math.max(maxY, bounds.y + bounds.height);
+    }
+
+    const boundsWidth = maxX - minX;
+    const boundsHeight = maxY - minY;
+
+    if (boundsWidth === 0 || boundsHeight === 0) {
+      zoomLevel.value = 1;
+      panOffset.value = { x: 0, y: 0 };
+      return;
+    }
+
+    const scaleX = viewportWidth / boundsWidth;
+    const scaleY = viewportHeight / boundsHeight;
+    const zoom = Math.min(scaleX, scaleY) * 0.9; // Add some padding
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const panX = viewportWidth / 2 - centerX * zoom;
+    const panY = viewportHeight / 2 - centerY * zoom;
+
+    zoomLevel.value = zoom;
+    panOffset.value = { x: panX, y: panY };
   }
 
   // Save state to backend
   async function saveStateToBackend() {
     try {
       const state = {
-        shapes: serializeShapes(shapes.value), // Serialize to remove element references
-        currentTool: currentTool.value,
-        currentColor: currentColor.value,
-        lineWidth: lineWidth.value,
-        fontSize: fontSize.value,
-        fontFamily: fontFamily.value,
-        selectionMode: selectionMode.value,
-        panOffset: panOffset.value,
-        zoomLevel: zoomLevel.value,
-        pointEditSelectedShapeId: pointEditSelectedShapeId.value,
-        draggedPointIndex: draggedPointIndex.value,
+        shapes: serializeShapes(shapes.value),
       };
       await SaveState(JSON.stringify(state));
     } catch (error) {
@@ -414,6 +456,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     loadStateFromBackend,
     setPointEditSelectedShape,
     setDraggedPointIndex,
+    fitView,
     saveStateToBackend,
   };
 });

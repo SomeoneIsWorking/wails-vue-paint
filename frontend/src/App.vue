@@ -117,8 +117,7 @@ onMounted(async () => {
     isMac.value = navigator.userAgent.includes("Mac");
   }
 
-  // Load saved state
-  await store.loadStateFromBackend();
+  // Load saved state will be done in Canvas component
 });
 
 onUnmounted(() => {

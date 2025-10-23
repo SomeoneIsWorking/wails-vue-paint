@@ -97,7 +97,6 @@ const handlePointEditMouseDown = (coords: Point) => {
 const handlePointDragging = (coords: Point) => {
   if (store.pointEditSelectedShape && store.draggedPointIndex !== null) {
     store.pointEditSelectedShape.updateDraggablePoint(store.draggedPointIndex, coords);
-    store.saveStateToBackend();
   }
 };
 
@@ -184,6 +183,7 @@ const handleMouseUp = () => {
   // Stop dragging point
   if (store.draggedPointIndex !== null) {
     store.setDraggedPointIndex(null);
+    store.saveStateToBackend();
     return;
   }
 
@@ -274,7 +274,7 @@ const cancelTextInput = () => {
   textInputValue.value = "";
 };
 
-onMounted(() => {
+onMounted(async () => {
   const svg = svgRef.value;
   const container = containerRef.value;
 
@@ -282,6 +282,12 @@ onMounted(() => {
     // Set SVG size to container size
     svg.setAttribute("width", container.clientWidth.toString());
     svg.setAttribute("height", container.clientHeight.toString());
+
+    // Load saved state
+    await store.loadStateFromBackend();
+
+    // Fit view to cover all shapes
+    store.fitView(container.clientWidth, container.clientHeight);
   }
 });
 </script>

@@ -6,6 +6,7 @@ import { CircleShapeData } from "@/types/shapeData";
 export class CircleShape extends Shape<CircleShapeData> {
   startPoint: Ref<Point>;
   endPoint: Ref<Point>;
+  lineWidth: Ref<number>;
 
   protected _bounds = computed(() => {
     const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
@@ -28,9 +29,10 @@ export class CircleShape extends Shape<CircleShapeData> {
     endPoint: Point,
     element?: SVGElement
   ) {
-    super(id, color, lineWidth, element);
+    super(id, color, element);
     this.startPoint = ref(startPoint);
     this.endPoint = ref(endPoint);
+    this.lineWidth = ref(lineWidth);
   }
 
   move(deltaX: number, deltaY: number): void {
@@ -61,6 +63,7 @@ export class CircleShape extends Shape<CircleShapeData> {
   protected getSerializableProperties() {
     return {
       type: "circle" as const,
+      lineWidth: this.lineWidth.value,
       startPoint: this.startPoint.value,
       endPoint: this.endPoint.value,
     };

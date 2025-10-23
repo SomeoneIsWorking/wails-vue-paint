@@ -25,13 +25,12 @@ export class TextShape extends Shape<TextShapeData> {
   constructor(
     id: string,
     color: string,
-    lineWidth: number,
     startPoint: Point,
     text: string,
     fontSize: number,
     fontFamily: string
   ) {
-    super(id, color, lineWidth);
+    super(id, color);
     this.startPoint = ref(startPoint);
     this.text = ref(text);
     this.fontSize = ref(fontSize);

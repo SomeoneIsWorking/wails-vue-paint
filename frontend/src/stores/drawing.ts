@@ -18,10 +18,11 @@ export const useDrawingStore = defineStore("drawing", () => {
   const selectionMode = ref<SelectionMode>("half");
 
   // Drawing properties
-  const currentColor = ref("#000000");
-  const lineWidth = ref(2);
-  const fontSize = ref(16);
-  const fontFamily = ref("Arial");
+  const currentColor = ref<string | undefined>("#000000");
+  const lineWidth = ref<number | undefined>(2);
+  const fontSize = ref<number | undefined>(16);
+  const fontFamily = ref<string | undefined>("Arial");
+  const smoothing = ref<number | undefined>(2);
 
   // Shapes and selection
   const shapes = shallowRef<Shape[]>([]);
@@ -35,13 +36,45 @@ export const useDrawingStore = defineStore("drawing", () => {
   const dragSelectEnd = ref<{ x: number; y: number } | null>(null);
 
   // Point editing state
-  const pointEditSelectedShapeId = ref<string | null>(null);
   const draggedPointIndex = ref<number | null>(null);
 
   // Pan and zoom state
   const panOffset = ref({ x: 0, y: 0 });
   const zoomLevel = ref(1);
   const isPanning = ref(false);
+
+  // Debounce timeout for backend saves
+  const saveTimeout = ref<number | null>(null);
+
+  // Helper function to get common value or undefined
+  function getCommonValue<T>(shapes: Shape[], property: string): T | undefined {
+    if (shapes.length === 0) return undefined;
+    const values = shapes
+      .filter((s) => property in s)
+      .map((s) => (s as any)[property].value);
+    const first = values[0];
+    if (values.every((v) => v === first)) return first;
+    return undefined;
+  }
+
+  // Function to sync current properties from selection
+  function syncCurrentProperties() {
+    const selected = selectedShapes.value;
+    if (selected.length === 0) {
+      // Set to defaults when no selection
+      currentColor.value = "#000000";
+      lineWidth.value = 2;
+      fontSize.value = 16;
+      fontFamily.value = "Arial";
+      smoothing.value = 2;
+      return;
+    }
+    currentColor.value = getCommonValue(selected, "color");
+    lineWidth.value = getCommonValue(selected, "lineWidth");
+    fontSize.value = getCommonValue(selected, "fontSize");
+    fontFamily.value = getCommonValue(selected, "fontFamily");
+    smoothing.value = getCommonValue(selected, "smoothing");
+  }
 
   // Computed
   const selectedShapes = computed(() =>
@@ -51,16 +84,9 @@ export const useDrawingStore = defineStore("drawing", () => {
   const hasSelection = computed(() => selectedShapeIds.value.length > 0);
 
   const pointEditSelectedShape = computed(() => {
-    if (!pointEditSelectedShapeId.value) return null;
-    return (
-      shapes.value.find((s) => s.id === pointEditSelectedShapeId.value) || null
-    );
-  });
-
-  const selectionHasMultipleColors = computed(() => {
-    if (selectedShapes.value.length <= 1) return false;
-    const colors = new Set(selectedShapes.value.map((s) => s.color));
-    return colors.size > 1;
+    const firstId = selectedShapeIds.value[0];
+    if (!firstId) return null;
+    return shapes.value.find((s) => s.id === firstId) || null;
   });
 
   const dragSelectBounds = computed(() => {
@@ -115,22 +141,18 @@ export const useDrawingStore = defineStore("drawing", () => {
 
   // Actions
   function setTool(tool: ToolType) {
-    currentTool.value = tool
+    currentTool.value = tool;
     switch (tool) {
-      case 'select':
+      case "select":
         // Keep selection
-        break
-      case 'pointEdit':
-        // Keep selection and set point edit shape if available
-        if (selectedShapeIds.value.length > 0) {
-          pointEditSelectedShapeId.value = selectedShapeIds.value[0]
-        }
-        break
+        break;
+      case "pointEdit":
+        // Keep selection
+        break;
       default:
-        clearSelection()
-        pointEditSelectedShapeId.value = null
-        draggedPointIndex.value = null
-        break
+        clearSelection();
+        draggedPointIndex.value = null;
+        break;
     }
   }
 
@@ -138,52 +160,55 @@ export const useDrawingStore = defineStore("drawing", () => {
     selectionMode.value = mode;
   }
 
-  function setColor(color: string) {
-    currentColor.value = color;
-    // Update all selected shapes
+  function updateSelectedShapes(property: string, value: any) {
     if (hasSelection.value) {
       let hasUpdates = false;
       selectedShapeIds.value.forEach((id) => {
         const shape = shapes.value.find((s) => s.id === id);
-        if (shape) {
-          shape.color.value = color;
+        if (shape && (shape as any)[property]) {
+          (shape as any)[property].value = value;
           hasUpdates = true;
         }
       });
       if (hasUpdates) {
-        saveStateToBackend();
+        // Debounce the save
+        if (saveTimeout.value) clearTimeout(saveTimeout.value);
+        saveTimeout.value = setTimeout(() => {
+          saveStateToBackend();
+          saveTimeout.value = null;
+        }, 300) as any as number;
       }
     }
   }
 
+  function setColor(color: string) {
+    currentColor.value = color;
+    updateSelectedShapes("color", color);
+  }
+
   function setLineWidth(width: number) {
     lineWidth.value = width;
+    updateSelectedShapes("lineWidth", width);
   }
 
   function setFontSize(size: number) {
     fontSize.value = size;
+    updateSelectedShapes("fontSize", size);
   }
 
   function setFontFamily(family: string) {
     fontFamily.value = family;
+    updateSelectedShapes("fontFamily", family);
+  }
+
+  function setSmoothing(value: number) {
+    smoothing.value = value;
+    updateSelectedShapes("smoothing", value);
   }
 
   function addShape(shape: Shape) {
     shapes.value.push(shape);
     saveStateToBackend();
-  }
-
-  function updateShape(shapeId: string, updates: any) {
-    const shape = shapes.value.find((s) => s.id === shapeId);
-    if (shape) {
-      Object.keys(updates).forEach((key) => {
-        if (key in shape) {
-          // @ts-ignore
-          shape[key] = updates[key];
-        }
-      });
-      saveStateToBackend();
-    }
   }
 
   function deleteShape(shapeId: string) {
@@ -199,6 +224,7 @@ export const useDrawingStore = defineStore("drawing", () => {
       (shape) => !selectedShapeIds.value.includes(shape.id)
     );
     selectedShapeIds.value = [];
+    syncCurrentProperties();
     saveStateToBackend();
   }
 
@@ -212,17 +238,15 @@ export const useDrawingStore = defineStore("drawing", () => {
     }
 
     // Auto-switch to select tool when selection becomes non-empty
-    if (selectedShapeIds.value.length > 0 && currentTool.value !== 'select' && currentTool.value !== 'pointEdit') {
-      currentTool.value = 'select'
+    if (
+      selectedShapeIds.value.length > 0 &&
+      currentTool.value !== "select" &&
+      currentTool.value !== "pointEdit"
+    ) {
+      currentTool.value = "select";
     }
 
-    // Sync color to first selected shape if single selection
-    if (selectedShapeIds.value.length === 1) {
-      const shape = shapes.value.find((s) => s.id === shapeId);
-      if (shape) {
-        currentColor.value = shape.color.value;
-      }
-    }
+    syncCurrentProperties();
   }
 
   function toggleShapeSelection(shapeId: string) {
@@ -232,19 +256,27 @@ export const useDrawingStore = defineStore("drawing", () => {
     } else {
       selectedShapeIds.value.push(shapeId);
     }
+    syncCurrentProperties();
   }
 
   function selectMultipleShapes(shapeIds: string[]) {
-    selectedShapeIds.value = [...shapeIds]
-    
+    selectedShapeIds.value = [...shapeIds];
+
     // Auto-switch to select tool when selection becomes non-empty
-    if (selectedShapeIds.value.length > 0 && currentTool.value !== 'select' && currentTool.value !== 'pointEdit') {
-      currentTool.value = 'select'
+    if (
+      selectedShapeIds.value.length > 0 &&
+      currentTool.value !== "select" &&
+      currentTool.value !== "pointEdit"
+    ) {
+      currentTool.value = "select";
     }
+
+    syncCurrentProperties();
   }
 
   function clearSelection() {
     selectedShapeIds.value = [];
+    syncCurrentProperties();
   }
 
   function clearShapes() {
@@ -310,8 +342,9 @@ export const useDrawingStore = defineStore("drawing", () => {
   }
 
   function setPointEditSelectedShape(shapeId: string | null) {
-    pointEditSelectedShapeId.value = shapeId;
+    selectedShapeIds.value = shapeId ? [shapeId] : [];
     draggedPointIndex.value = null;
+    syncCurrentProperties();
   }
 
   function setDraggedPointIndex(index: number | null) {
@@ -357,8 +390,8 @@ export const useDrawingStore = defineStore("drawing", () => {
     const panX = viewportWidth / 2 - centerX * zoom;
     const panY = viewportHeight / 2 - centerY * zoom;
 
-    zoomLevel.value = zoom;
-    panOffset.value = { x: panX, y: panY };
+    zoomLevel.value = zoom || 1;
+    panOffset.value = { x: panX || 0, y: panY || 0 };
   }
 
   // Save state to backend
@@ -366,6 +399,17 @@ export const useDrawingStore = defineStore("drawing", () => {
     try {
       const state = {
         shapes: serializeShapes(shapes.value),
+        currentTool: currentTool.value,
+        currentColor: currentColor.value,
+        lineWidth: lineWidth.value,
+        fontSize: fontSize.value,
+        fontFamily: fontFamily.value,
+        smoothing: smoothing.value,
+        selectionMode: selectionMode.value,
+        selectedShapeIds: selectedShapeIds.value,
+        panOffset: panOffset.value,
+        zoomLevel: zoomLevel.value,
+        draggedPointIndex: draggedPointIndex.value,
       };
       await SaveState(JSON.stringify(state));
     } catch (error) {
@@ -382,16 +426,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         shapes.value = state.shapes
           ? state.shapes.map(createShapeFromData)
           : [];
-        currentTool.value = state.currentTool || "select";
-        currentColor.value = state.currentColor || "#000000";
-        lineWidth.value = state.lineWidth || 2;
-        fontSize.value = state.fontSize || 16;
-        fontFamily.value = state.fontFamily || "Arial";
-        selectionMode.value = state.selectionMode || "half";
-        panOffset.value = state.panOffset || { x: 0, y: 0 };
-        zoomLevel.value = state.zoomLevel || 1;
-        pointEditSelectedShapeId.value = state.pointEditSelectedShapeId || null;
-        draggedPointIndex.value = state.draggedPointIndex || null;
         console.log("State loaded successfully");
       }
     } catch (error) {
@@ -407,6 +441,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     lineWidth,
     fontSize,
     fontFamily,
+    smoothing,
     shapes,
     selectedShapeIds,
     isDrawing,
@@ -417,13 +452,11 @@ export const useDrawingStore = defineStore("drawing", () => {
     panOffset,
     zoomLevel,
     isPanning,
-    pointEditSelectedShapeId,
     draggedPointIndex,
 
     // Computed
     selectedShapes,
     hasSelection,
-    selectionHasMultipleColors,
     dragSelectBounds,
     dragSelectPreviewShapeIds,
     pointEditSelectedShape,
@@ -435,8 +468,8 @@ export const useDrawingStore = defineStore("drawing", () => {
     setLineWidth,
     setFontSize,
     setFontFamily,
+    setSmoothing,
     addShape,
-    updateShape,
     deleteShape,
     deleteSelectedShapes,
     selectShape,

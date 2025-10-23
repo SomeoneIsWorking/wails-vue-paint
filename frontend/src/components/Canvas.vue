@@ -11,6 +11,7 @@ import {
   RectangleShape,
 } from "@/composables/shapes";
 import type { Point } from "@/types";
+import { generateSmoothPath, isPointInBounds } from "@/utils/shapeHelpers";
 
 const store = useDrawingStore();
 
@@ -70,7 +71,7 @@ const getSVGCoordinates = (event: MouseEvent) => {
 const handlePointEditMouseDown = (coords: Point) => {
   const selectedShape = store.pointEditSelectedShape;
   if (selectedShape) {
-    // Check if clicking on a draggable point
+    // Check if clicking on a draggable point of the selected shape
     const points = selectedShape.getDraggablePoints();
     for (let i = 0; i < points.length; i++) {
       const point = points[i];
@@ -80,17 +81,15 @@ const handlePointEditMouseDown = (coords: Point) => {
         return;
       }
     }
-    // Not on a point, deselect shape
-    store.setPointEditSelectedShape(null);
+  }
+
+  // Not on a point of selected shape, find shape at position
+  const clickedShape = store.shapes.find(shape => isPointInBounds(coords, shape.bounds));
+
+  if (clickedShape) {
+    store.setPointEditSelectedShape(clickedShape.id);
   } else {
-    // No shape selected, try to select one
-    for (const shape of store.shapes) {
-      if (coords.x >= shape.bounds.x && coords.x <= shape.bounds.x + shape.bounds.width &&
-          coords.y >= shape.bounds.y && coords.y <= shape.bounds.y + shape.bounds.height) {
-        store.setPointEditSelectedShape(shape.id);
-        break;
-      }
-    }
+    store.setPointEditSelectedShape(null);
   }
 };
 
@@ -347,9 +346,7 @@ onMounted(async () => {
           <!-- Freehand drawing -->
           <path
             v-else-if="shape instanceof DrawShape"
-            :d="`M ${shape.points.value
-              .map((p) => `${p.x},${p.y}`)
-              .join(' L ')}`"
+            :d="generateSmoothPath(shape.points.value)"
             :stroke="shape.color.value"
             :stroke-width="shape.lineWidth.value"
             stroke-linecap="round"
@@ -408,6 +405,7 @@ onMounted(async () => {
         <!-- Selection boxes -->
         <rect
           v-for="(bounds, index) in selectionBounds"
+          v-if="store.currentTool === 'select'"
           :key="'selection-' + index"
           class="selection-box"
           :x="bounds.x - 3"

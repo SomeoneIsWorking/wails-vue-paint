@@ -21,14 +21,13 @@ export class ImageShape extends Shape<ImageShapeData> {
   constructor(
     id: string,
     color: string,
-    lineWidth: number,
     startPoint: Point,
     imageData: string,
     imageWidth: number,
     imageHeight: number,
     element?: SVGElement
   ) {
-    super(id, color, lineWidth, element);
+    super(id, color, element);
     this.startPoint = ref(startPoint);
     this.imageData = ref(imageData);
     this.imageWidth = ref(imageWidth);

@@ -4,7 +4,6 @@ export interface ImageShapeData {
   type: "image";
   id: string;
   color: string;
-  lineWidth: number;
   startPoint: Point;
   imageData: string;
   imageWidth: number;
@@ -15,7 +14,6 @@ export interface TextShapeData {
   type: "text";
   id: string;
   color: string;
-  lineWidth: number;
   startPoint: Point;
   text: string;
   fontSize: number;

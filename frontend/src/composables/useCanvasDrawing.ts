@@ -9,7 +9,7 @@ import {
   Shape,
 } from "./shapes";
 import { Point } from "@/types";
-import { generateShapeId, isPointInBounds } from "@/utils/shapeHelpers";
+import { generateShapeId, isPointInBounds, simplifyPoints } from "@/utils/shapeHelpers";
 
 export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const store = useDrawingStore();
@@ -105,8 +105,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       case "line":
         previewShape.value = new LineShape(
           "preview",
-          store.currentColor,
-          store.lineWidth,
+          store.currentColor!,
+          store.lineWidth!,
           startPoint,
           endPoint
         );
@@ -114,8 +114,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       case "rectangle":
         previewShape.value = new RectangleShape(
           "preview",
-          store.currentColor,
-          store.lineWidth,
+          store.currentColor!,
+          store.lineWidth!,
           startPoint,
           endPoint
         );
@@ -123,8 +123,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       case "arrow":
         previewShape.value = new ArrowShape(
           "preview",
-          store.currentColor,
-          store.lineWidth,
+          store.currentColor!,
+          store.lineWidth!,
           startPoint,
           endPoint
         );
@@ -132,8 +132,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       case "draw":
         previewShape.value = new DrawShape(
           "preview",
-          store.currentColor,
-          store.lineWidth,
+          store.currentColor!,
+          store.lineWidth!,
           [startPoint]
         );
         break;
@@ -205,30 +205,30 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       switch (store.currentTool) {
         case "draw":
           const preview = previewShape.value as DrawShape;
-          return new DrawShape(id, store.currentColor, store.lineWidth, [
-            ...preview.points.value,
+          return new DrawShape(id, store.currentColor!, store.lineWidth!, [
+            ...simplifyPoints(preview.points.value, store.smoothing),
           ]);
         case "line":
           return new LineShape(
             id,
-            store.currentColor,
-            store.lineWidth,
+            store.currentColor!,
+            store.lineWidth!,
             startPoint,
             endPoint
           );
         case "rectangle":
           return new RectangleShape(
             id,
-            store.currentColor,
-            store.lineWidth,
+            store.currentColor!,
+            store.lineWidth!,
             startPoint,
             endPoint
           );
         case "arrow":
           return new ArrowShape(
             id,
-            store.currentColor,
-            store.lineWidth,
+            store.currentColor!,
+            store.lineWidth!,
             startPoint,
             endPoint
           );
@@ -255,12 +255,11 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   function drawText(x: number, y: number, text: string): Shape {
     const newShape = new TextShape(
       generateShapeId(),
-      store.currentColor,
-      store.lineWidth,
+      store.currentColor!,
       { x, y },
       text,
-      store.fontSize,
-      store.fontFamily
+      store.fontSize!,
+      store.fontFamily!
     );
     store.addShape(newShape);
     store.selectShape(newShape.id);

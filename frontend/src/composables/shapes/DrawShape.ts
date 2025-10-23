@@ -5,10 +5,12 @@ import { DrawShapeData } from "@/types/shapeData";
 
 export class DrawShape extends Shape<DrawShapeData> {
   points: Ref<Point[]>;
+  lineWidth: Ref<number>;
 
   constructor(id: string, color: string, lineWidth: number, points: Point[]) {
-    super(id, color, lineWidth);
+    super(id, color);
     this.points = ref(points);
+    this.lineWidth = ref(lineWidth);
   }
 
   protected _bounds = computed(() => {
@@ -55,6 +57,7 @@ export class DrawShape extends Shape<DrawShapeData> {
   protected getSerializableProperties() {
     return {
       type: "draw" as const,
+      lineWidth: this.lineWidth.value,
       points: this.points.value,
     };
   }

@@ -4,59 +4,35 @@ import { useDrawingStore } from "@/stores/drawing";
 
 const store = useDrawingStore();
 
+const commonProperties = computed(() => {
+  if (!store.hasSelection || store.selectedShapes.length === 0)
+    return new Set<string>();
+  const first = store.selectedShapes[0];
+  const props = new Set(Object.keys(first));
+  for (const shape of store.selectedShapes.slice(1)) {
+    for (const prop of [...props]) {
+      if (!(prop in shape)) props.delete(prop);
+    }
+  }
+  return props;
+});
+
 const showLineWidth = computed(
   () =>
     ["draw", "line", "rectangle", "arrow"].includes(store.currentTool) ||
-    (store.hasSelection && store.selectedShapes.some((s) => "lineWidth" in s))
+    commonProperties.value.has("lineWidth")
 );
 
+const showSmoothing = computed(() => store.currentTool === "draw");
+
 const showFontOptions = computed(
-  () =>
-    store.currentTool === "text" ||
-    (store.hasSelection &&
-      store.selectedShapes.some((s) => "type" in s && s.type === "text"))
+  () => store.currentTool === "text" || commonProperties.value.has("fontSize")
 );
 
 const showShapeProperties = computed(() => store.hasSelection);
 
-// Use first selected shape's properties or default tool properties
-const currentLineWidth = computed(() =>
-  store.selectedShapes.length > 0
-    ? store.selectedShapes[0].lineWidth
-    : store.lineWidth
-);
-const currentFontSize = computed(() => store.fontSize);
-const currentFontFamily = computed(() => store.fontFamily);
-
-const updateLineWidth = (width: number) => {
-  if (store.hasSelection) {
-    // Update all selected shapes
-    store.selectedShapeIds.forEach((id) => {
-      store.updateShape(id, { lineWidth: width });
-    });
-  } else {
-    store.setLineWidth(width);
-  }
-};
-
-const updateFontSize = (size: number) => {
-  if (store.hasSelection) {
-    store.selectedShapeIds.forEach((id) => {
-      store.updateShape(id, { fontSize: size });
-    });
-  } else {
-    store.setFontSize(size);
-  }
-};
-
-const updateFontFamily = (family: string) => {
-  if (store.hasSelection) {
-    store.selectedShapeIds.forEach((id) => {
-      store.updateShape(id, { fontFamily: family });
-    });
-  } else {
-    store.setFontFamily(family);
-  }
+const updateSmoothing = (value: number) => {
+  store.setSmoothing(value);
 };
 
 const fontFamilies = [
@@ -81,15 +57,38 @@ const fontFamilies = [
         type="range"
         min="1"
         max="20"
-        :value="currentLineWidth"
+        :value="store.lineWidth ?? 2"
         @input="
-          updateLineWidth(Number(($event.target as HTMLInputElement).value))
+          store.setLineWidth(Number(($event.target as HTMLInputElement).value))
         "
         class="input-range w-32"
       />
-      <span class="text-xs text-gray-600 dark:text-gray-400 w-7"
-        >{{ currentLineWidth }}px</span
+      <span class="text-xs text-gray-600 dark:text-gray-400 w-7">
+        {{ store.lineWidth === undefined ? "?px" : `${store.lineWidth}px` }}
+      </span>
+    </div>
+
+    <!-- Smoothing for Draw tool -->
+    <div v-if="showSmoothing" class="flex items-center gap-2">
+      <label
+        class="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap"
       >
+        Smoothing:
+      </label>
+      <input
+        type="range"
+        min="0"
+        max="10"
+        step="0.1"
+        :value="store.smoothing ?? 2"
+        @input="
+          updateSmoothing(Number(($event.target as HTMLInputElement).value))
+        "
+        class="input-range w-32"
+      />
+      <span class="text-xs text-gray-600 dark:text-gray-400 w-7">
+        {{ store.smoothing === undefined ? "?" : store.smoothing?.toFixed(1) }}
+      </span>
     </div>
 
     <!-- Font Options for Text -->
@@ -104,20 +103,22 @@ const fontFamilies = [
           type="range"
           min="12"
           max="72"
-          :value="currentFontSize"
+          :value="store.fontSize ?? 16"
           @input="
-            updateFontSize(Number(($event.target as HTMLInputElement).value))
+            store.setFontSize(Number(($event.target as HTMLInputElement).value))
           "
           class="input-range w-32"
         />
-        <span class="text-xs text-gray-600 dark:text-gray-400 w-7"
-          >{{ currentFontSize }}px</span
-        >
+        <span class="text-xs text-gray-600 dark:text-gray-400 w-7">{{
+          store.fontSize === undefined ? "?px" : `${store.fontSize}px`
+        }}</span>
       </div>
 
       <select
-        :value="currentFontFamily"
-        @change="updateFontFamily(($event.target as HTMLSelectElement).value)"
+        :value="store.fontFamily ?? 'Arial'"
+        @change="
+          store.setFontFamily(($event.target as HTMLSelectElement).value)
+        "
         class="input-select text-xs h-7"
       >
         <option v-for="font in fontFamilies" :key="font" :value="font">

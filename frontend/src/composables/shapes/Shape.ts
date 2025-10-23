@@ -5,7 +5,6 @@ import { ShapeData } from "@/types/shapeData";
 export abstract class Shape<T extends ShapeData = any> {
   id: string;
   color: Ref<string>;
-  lineWidth: Ref<number>;
   element?: SVGElement;
 
   protected abstract _bounds: ComputedRef<Bounds>;
@@ -13,12 +12,10 @@ export abstract class Shape<T extends ShapeData = any> {
   constructor(
     id: string,
     color: string,
-    lineWidth: number,
     element?: SVGElement
   ) {
     this.id = id;
     this.color = ref(color);
-    this.lineWidth = ref(lineWidth);
     this.element = element;
   }
 
@@ -36,10 +33,9 @@ export abstract class Shape<T extends ShapeData = any> {
     return {
       id: this.id,
       color: this.color.value,
-      lineWidth: this.lineWidth.value,
       ...this.getSerializableProperties(),
     } as T;
   }
 
-  protected abstract getSerializableProperties(): Omit<T, 'id' | 'color' | 'lineWidth'>;
+  protected abstract getSerializableProperties(): Omit<T, 'id' | 'color'>;
 }

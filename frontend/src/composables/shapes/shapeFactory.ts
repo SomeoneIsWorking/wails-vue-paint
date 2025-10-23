@@ -40,7 +40,6 @@ export function createShapeFromData(data: ShapeData): Shape<any> {
       return new TextShape(
         data.id,
         data.color,
-        data.lineWidth,
         data.startPoint,
         data.text,
         data.fontSize,
@@ -57,7 +56,6 @@ export function createShapeFromData(data: ShapeData): Shape<any> {
       return new ImageShape(
         data.id,
         data.color,
-        data.lineWidth,
         data.startPoint,
         data.imageData,
         data.imageWidth,

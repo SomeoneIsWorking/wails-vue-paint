@@ -11,13 +11,13 @@ const presetColors = [
 
 // Show unselected state if multiple shapes with different colors selected
 const displayColor = computed(() => {
-  if (store.selectionHasMultipleColors) {
+  if (store.currentColor === undefined) {
     return '#808080' // Gray for indeterminate state
   }
   return store.currentColor
 })
 
-const isIndeterminate = computed(() => store.selectionHasMultipleColors)
+const isIndeterminate = computed(() => store.currentColor === undefined)
 
 const selectColor = (color: string) => {
   store.setColor(color)

@@ -19,7 +19,7 @@ const textInputRef = ref<HTMLTextAreaElement | null>(null);
 const panStartPoint = ref<{ x: number; y: number } | null>(null);
 
 const {
-  startDrawing,
+  onPointerDown,
   draw,
   stopDrawing,
   drawText,
@@ -149,13 +149,13 @@ const getImageData = (): string | null => {
 const handleMouseDown = (event: MouseEvent) => {
   if (textInputVisible.value) {
     return;
-  } // Ignore if text input is active
+  }
+
   const svg = svgRef.value;
   if (!svg) {
     return;
   }
 
-  // Space bar for panning
   if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
     panStartPoint.value = { x: event.clientX, y: event.clientY };
     store.startPanning();
@@ -177,7 +177,7 @@ const handleMouseDown = (event: MouseEvent) => {
     }, 0);
   } else {
     isCurrentlyDrawing.value = true;
-    startDrawing(coords.x, coords.y, event);
+    onPointerDown(coords.x, coords.y, event);
   }
 };
 
@@ -281,10 +281,6 @@ const handleTextInputBlur = () => {
 const commitTextInput = () => {
   // Read directly from the textarea element
   const textValue = textInputValue.value || "";
-  console.log("commitTextInput called, value from element:", textValue);
-  console.log("value from ref:", textInputValue.value);
-  console.log("trimmed:", textValue.trim());
-  console.log("svg position:", textInputSVGPosition.value);
 
   const trimmedText = textValue.trim();
   if (trimmedText) {
@@ -299,8 +295,6 @@ const commitTextInput = () => {
       trimmedText
     );
     saveState();
-  } else {
-    console.log("Text is empty, not creating");
   }
   cancelTextInput();
 };

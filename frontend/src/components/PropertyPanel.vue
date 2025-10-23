@@ -62,7 +62,7 @@ const fontFamilies = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'V
 </script>
 
 <template>
-  <div class="flex items-center gap-4 h-[48px]">
+  <div class="flex items-center gap-4 h-12">
     <!-- Line Width for Drawing/Shapes -->
     <div v-if="showLineWidth" class="flex items-center gap-2">
       <label class="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">

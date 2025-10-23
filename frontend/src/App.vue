@@ -8,7 +8,7 @@ import Footer from "./components/Footer.vue";
 import { useDrawingStore } from "./stores/drawing";
 
 // @ts-ignore
-import { SaveImage, GetClipboardImage, Log } from "../wailsjs/go/main/App";
+import { SaveImage, GetClipboardImage } from "../wailsjs/go/main/App";
 // @ts-ignore
 import { Environment } from "../wailsjs/runtime/runtime";
 
@@ -17,27 +17,27 @@ const isMac = ref(false);
 const canvasRef = ref<InstanceType<typeof Canvas> | null>(null);
 
 const handlePaste = async () => {
-  await Log("[handlePaste] Paste function called");
+  console.log("[handlePaste] Paste function called");
   try {
-    await Log("[handlePaste] Calling GetClipboardImage...");
+    console.log("[handlePaste] Calling GetClipboardImage...");
     const imageData = await GetClipboardImage();
-    await Log(
+    console.log(
       `[handlePaste] Got response, imageData length: ${imageData?.length || 0}`
     );
 
     if (imageData && canvasRef.value) {
-      await Log("[handlePaste] Loading image to canvas...");
+      console.log("[handlePaste] Loading image to canvas...");
       await canvasRef.value.loadImage(imageData);
-      await Log("[handlePaste] Image loaded successfully!");
+      console.log("[handlePaste] Image loaded successfully!");
     } else if (!imageData) {
-      await Log("[handlePaste] ERROR: No image data returned from clipboard");
+      console.log("[handlePaste] ERROR: No image data returned from clipboard");
       alert("No image data returned from clipboard");
     } else if (!canvasRef.value) {
-      await Log("[handlePaste] ERROR: Canvas not ready");
+      console.log("[handlePaste] ERROR: Canvas not ready");
       alert("Canvas not ready");
     }
   } catch (error) {
-    await Log(`[handlePaste] ERROR: ${error}`);
+    console.log(`[handlePaste] ERROR: ${error}`);
     console.error("Failed to get clipboard image:", error);
     alert("No image in clipboard or failed to read clipboard: " + error);
   }
@@ -89,7 +89,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
   // Command/Ctrl + V for paste
   else if ((event.metaKey || event.ctrlKey) && event.key === "v") {
-    Log("[handleKeyDown] Cmd+V pressed");
+    console.log("[handleKeyDown] Cmd+V pressed");
     event.preventDefault();
     event.stopPropagation();
     handlePaste();
@@ -191,7 +191,7 @@ onUnmounted(() => {
     <header
       :class="[
         'flex justify-between items-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50',
-        isMac ? 'h-[32px] px-3 pl-20' : 'h-[44px] px-5',
+        isMac ? 'h-8 px-3 pl-20' : 'h-11 px-5',
         'wails-draggable',
       ]"
     >

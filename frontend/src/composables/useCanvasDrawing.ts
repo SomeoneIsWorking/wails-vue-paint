@@ -1,7 +1,7 @@
 import { ref, type Ref } from "vue";
 import type { Shape, Point } from "@/types";
 import { useDrawingStore } from "@/stores/drawing";
-import { generateShapeId, calculateBounds, moveShape } from "@/utils/shapeHelpers";
+import { generateShapeId, calculateBounds, moveShape, isPointInBounds } from "@/utils/shapeHelpers";
 
 export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const store = useDrawingStore();
@@ -26,25 +26,64 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     return { x: svgP.x, y: svgP.y };
   }
 
-  function startDrawing(x: number, y: number, event?: MouseEvent) {
+  function onPointerDown(x: number, y: number, event?: MouseEvent) {
     if (store.currentTool === "select") {
-      const target = event?.target as SVGElement;
-      const shapeId = target?.getAttribute("data-shape-id");
+      handleSelectTool(x, y, event);
+    } else {
+      startDrawing(x, y);
+    }
+  }
 
-      if (shapeId && store.selectedShapeIds.includes(shapeId)) {
-        // Start dragging selected shapes
+  function handleSelectTool(x: number, y: number, event?: MouseEvent) {
+    const clickPoint = { x, y };
+    const isShiftPressed = event?.shiftKey || false;
+
+    // Find shapes that contain the click point
+    const shapesAtPoint = store.shapes.filter(shape => 
+      isPointInBounds(clickPoint, shape.bounds)
+    );
+
+    if (shapesAtPoint.length > 0) {
+      // Clicked on one or more shapes
+      const topShape = shapesAtPoint[shapesAtPoint.length - 1]; // Last drawn shape (topmost)
+
+      if (isShiftPressed) {
+        // Toggle selection
+        if (store.selectedShapeIds.includes(topShape.id)) {
+          store.toggleShapeSelection(topShape.id);
+        } else {
+          store.selectShape(topShape.id, true); // Add to selection
+        }
+      } else {
+        // Single selection
+        if (!store.selectedShapeIds.includes(topShape.id)) {
+          store.selectShape(topShape.id);
+        }
+      }
+
+      // If there are selected shapes and we clicked within their bounds, start dragging
+      const clickedOnSelectedShape = shapesAtPoint.some(shape => 
+        store.selectedShapeIds.includes(shape.id)
+      );
+      
+      if (clickedOnSelectedShape) {
         isDraggingShapes.value = true;
         startX.value = x;
         startY.value = y;
-        return;
-      } else if (target === svgRef.value || target.tagName === "svg" || target.tagName === "g") {
-        // Start drag selection on empty space
-        store.startDragSelection(x, y);
-        return;
+        console.log('Starting to drag shapes');
       }
       return;
+    } else {
+      // Clicked on empty space - start drag selection
+      if (!isShiftPressed) {
+        store.clearSelection();
+      }
+      store.startDragSelection(x, y);
+      return;
     }
+  }
 
+  function startDrawing(x: number, y: number) {
     // Clear selection when starting new drawing
     store.clearSelection();
 
@@ -94,6 +133,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
         moveShape(shape, deltaX, deltaY);
       });
 
+      console.log('Dragging shapes by', deltaX, deltaY);
+
       startX.value = x;
       startY.value = y;
       return;
@@ -125,6 +166,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     // Finish shape dragging
     if (isDraggingShapes.value) {
       isDraggingShapes.value = false;
+      console.log('Stopped dragging shapes');
       return null;
     }
 
@@ -217,7 +259,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   }
 
   return {
-    startDrawing,
+    onPointerDown,
     draw,
     stopDrawing,
     drawText,

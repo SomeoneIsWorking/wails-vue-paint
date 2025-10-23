@@ -9,7 +9,10 @@ import {
   Shape,
 } from "./shapes";
 import { Point } from "@/types";
-import { generateShapeId, isPointInBounds, simplifyPoints } from "@/utils/shapeHelpers";
+import {
+  generateShapeId,
+  simplifyPoints,
+} from "@/utils/shapeHelpers";
 
 export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const store = useDrawingStore();
@@ -22,7 +25,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const lastY = ref(0);
   const previewShape = shallowRef<Shape | null>(null);
 
-  function getSVGCoordinates(event: MouseEvent): Point {
+  function getBaseSVGCoordinates(event: MouseEvent): Point {
     const svg = svgRef.value;
     if (!svg) return { x: 0, y: 0 };
 
@@ -47,7 +50,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
 
     // Find shapes that contain the click point
     const shapesAtPoint = store.shapes.filter((shape) =>
-      isPointInBounds(clickPoint, shape.bounds)
+      shape.bounds.containsPoint(clickPoint)
     );
 
     if (shapesAtPoint.length > 0) {
@@ -170,7 +173,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
 
     // Update preview shape
     if (previewShape.value) {
-      if (previewShape.value instanceof DrawShape) {
+      if (previewShape.value.type === "draw") {
         previewShape.value.push({ x, y });
       } else {
         const otherShape = previewShape.value as
@@ -271,7 +274,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     draw,
     stopDrawing,
     drawText,
-    getSVGCoordinates,
+    getBaseSVGCoordinates,
     previewShape,
   };
 }

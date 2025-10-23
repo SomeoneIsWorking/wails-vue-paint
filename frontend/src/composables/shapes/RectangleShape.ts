@@ -1,24 +1,20 @@
 import { ref, computed, type Ref } from "vue";
-import { Shape } from "./Shape";
+import { ShapeClass } from "./Shape";
 import type { Point } from "@/types";
 import { RectangleShapeData } from "@/types/shapeData";
+import { Bounds } from "@/utils/Bounds";
 
-export class RectangleShape extends Shape<RectangleShapeData> {
+export class RectangleShape extends ShapeClass<RectangleShapeData> {
   startPoint: Ref<Point>;
   endPoint: Ref<Point>;
   lineWidth: Ref<number>;
 
+  drawBounds = computed((): Bounds => {
+    return new Bounds([this.startPoint.value, this.endPoint.value]);
+  });
+
   protected _bounds = computed(() => {
-    const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
-    const minY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
-    const maxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
-    const maxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
-    return {
-      x: minX - this.lineWidth.value / 2,
-      y: minY - this.lineWidth.value / 2,
-      width: maxX - minX + this.lineWidth.value,
-      height: maxY - minY + this.lineWidth.value,
-    };
+    return this.drawBounds.value.extend(this.lineWidth.value);
   });
 
   constructor(
@@ -29,7 +25,7 @@ export class RectangleShape extends Shape<RectangleShapeData> {
     endPoint: Point,
     element?: SVGElement
   ) {
-    super(id, color, element);
+    super(id, "rectangle", color, element);
     this.startPoint = ref(startPoint);
     this.endPoint = ref(endPoint);
     this.lineWidth = ref(lineWidth);
@@ -43,39 +39,52 @@ export class RectangleShape extends Shape<RectangleShapeData> {
   }
 
   getDraggablePoints(): Point[] {
-    const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
-    const maxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
-    const minY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
-    const maxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
+    const bounds = this.drawBounds.value;
     return [
-      { x: minX, y: minY }, // top-left
-      { x: maxX, y: minY }, // top-right
-      { x: maxX, y: maxY }, // bottom-right
-      { x: minX, y: maxY }, // bottom-left
+      bounds.topLeft,
+      bounds.topRight,
+      bounds.bottomRight,
+      bounds.bottomLeft,
     ];
   }
 
   updateDraggablePoint(index: number, newPoint: Point): void {
-    const currentMinX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
-    const currentMaxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
-    const currentMinY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
-    const currentMaxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
+    const currentMinX = Math.min(
+      this.startPoint.value.x,
+      this.endPoint.value.x
+    );
+    const currentMaxX = Math.max(
+      this.startPoint.value.x,
+      this.endPoint.value.x
+    );
+    const currentMinY = Math.min(
+      this.startPoint.value.y,
+      this.endPoint.value.y
+    );
+    const currentMaxY = Math.max(
+      this.startPoint.value.y,
+      this.endPoint.value.y
+    );
 
     let newMinX = currentMinX;
     let newMaxX = currentMaxX;
     let newMinY = currentMinY;
     let newMaxY = currentMaxY;
 
-    if (index === 0) { // top-left
+    if (index === 0) {
+      // top-left
       newMinX = newPoint.x;
       newMinY = newPoint.y;
-    } else if (index === 1) { // top-right
+    } else if (index === 1) {
+      // top-right
       newMaxX = newPoint.x;
       newMinY = newPoint.y;
-    } else if (index === 2) { // bottom-right
+    } else if (index === 2) {
+      // bottom-right
       newMaxX = newPoint.x;
       newMaxY = newPoint.y;
-    } else if (index === 3) { // bottom-left
+    } else if (index === 3) {
+      // bottom-left
       newMinX = newPoint.x;
       newMaxY = newPoint.y;
     }
@@ -100,7 +109,6 @@ export class RectangleShape extends Shape<RectangleShapeData> {
 
   protected getSerializableProperties() {
     return {
-      type: "rectangle" as const,
       lineWidth: this.lineWidth.value,
       startPoint: this.startPoint.value,
       endPoint: this.endPoint.value,

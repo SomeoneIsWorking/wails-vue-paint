@@ -72,3 +72,5 @@ export type ShapeData =
   | LineShapeData
   | ArrowShapeData
   | DrawShapeData;
+
+export type ShapeType = ShapeData["type"];

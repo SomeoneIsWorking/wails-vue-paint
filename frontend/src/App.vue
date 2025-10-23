@@ -6,7 +6,6 @@ import ColorPicker from "./components/ColorPicker.vue";
 import PropertyPanel from "./components/PropertyPanel.vue";
 import Footer from "./components/Footer.vue";
 import { useDrawingStore } from "./stores/drawing";
-import { DrawShape } from "./composables/shapes";
 
 // @ts-ignore
 import { SaveImage, GetClipboardImage } from "../wailsjs/go/main/App";
@@ -49,10 +48,16 @@ const handleClear = () => {
 const handleKeyDown = (event: KeyboardEvent) => {
   // Delete/Backspace to delete selected shapes or selected point
   if (event.key === "Backspace" || event.key === "Delete") {
-    if (store.selectedPointIndex !== null && store.pointEditSelectedShape instanceof DrawShape) {
+    const pointEditSelectedShape = store.pointEditSelectedShape;
+    if (
+      store.selectedPointIndices.length &&
+      pointEditSelectedShape?.type === "draw"
+    ) {
       event.preventDefault();
-      store.pointEditSelectedShape.removeDraggablePoint(store.selectedPointIndex);
-      store.setSelectedPointIndex(null);
+      for (let index of store.selectedPointIndices) {
+        pointEditSelectedShape.removeDraggablePoint(index);
+      }
+      store.setSelectedPointIndices([]);
       store.saveStateToBackend();
     } else if (store.hasSelection) {
       event.preventDefault();

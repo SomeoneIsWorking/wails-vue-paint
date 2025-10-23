@@ -75,7 +75,3 @@ const selectTool = (tool: ToolType) => {
     </button>
   </div>
 </template>
-
-<style scoped>
-/* No custom styles needed - using global .tool-btn class */
-</style>

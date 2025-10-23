@@ -1,9 +1,10 @@
 import { ref, computed, type Ref } from "vue";
-import { Shape } from "./Shape";
+import { ShapeClass } from "./Shape";
 import type { Point } from "@/types";
 import { TextShapeData } from "@/types/shapeData";
+import { Bounds } from "@/utils/Bounds";
 
-export class TextShape extends Shape<TextShapeData> {
+export class TextShape extends ShapeClass<TextShapeData> {
   startPoint: Ref<Point>;
   text: Ref<string>;
   fontSize: Ref<number>;
@@ -11,15 +12,18 @@ export class TextShape extends Shape<TextShapeData> {
 
   protected _bounds = computed(() => {
     const lines = this.text.value.split("\n");
-    const lineHeight = this.fontSize.value * 1.2;
+    const lineHeight = this.fontSize.value;
     const maxLineLength = Math.max(...lines.map((line) => line.length));
-
-    return {
-      x: this.startPoint.value.x,
-      y: this.startPoint.value.y - this.fontSize.value,
-      width: maxLineLength * this.fontSize.value * 0.6,
-      height: lines.length * lineHeight,
-    };
+    return new Bounds([
+      {
+        x: this.startPoint.value.x,
+        y: this.startPoint.value.y - this.fontSize.value,
+      },
+      {
+        x: this.startPoint.value.x + maxLineLength * this.fontSize.value * 0.6,
+        y: this.startPoint.value.y + lines.length * lineHeight - 10,
+      },
+    ]);
   });
 
   constructor(
@@ -30,7 +34,7 @@ export class TextShape extends Shape<TextShapeData> {
     fontSize: number,
     fontFamily: string
   ) {
-    super(id, color);
+    super(id, "text", color);
     this.startPoint = ref(startPoint);
     this.text = ref(text);
     this.fontSize = ref(fontSize);
@@ -54,7 +58,6 @@ export class TextShape extends Shape<TextShapeData> {
 
   protected getSerializableProperties() {
     return {
-      type: "text" as const,
       startPoint: this.startPoint.value,
       text: this.text.value,
       fontSize: this.fontSize.value,

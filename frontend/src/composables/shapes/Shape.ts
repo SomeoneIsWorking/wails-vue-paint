@@ -1,20 +1,18 @@
 import { ref, type Ref, type ComputedRef } from "vue";
-import type { Bounds, Point } from "@/types";
 import { ShapeData } from "@/types/shapeData";
+import { Bounds } from "@/utils/Bounds";
+import { Point } from "@/types";
 
-export abstract class Shape<T extends ShapeData = any> {
+export abstract class ShapeClass<T extends ShapeData> {
   id: string;
   color: Ref<string>;
   element?: SVGElement;
-
+  type: T["type"];
   protected abstract _bounds: ComputedRef<Bounds>;
 
-  constructor(
-    id: string,
-    color: string,
-    element?: SVGElement
-  ) {
+  constructor(id: string, type: T["type"], color: string, element?: SVGElement) {
     this.id = id;
+    this.type = type;
     this.color = ref(color);
     this.element = element;
   }
@@ -33,9 +31,13 @@ export abstract class Shape<T extends ShapeData = any> {
     return {
       id: this.id,
       color: this.color.value,
+      type: this.type,
       ...this.getSerializableProperties(),
     } as T;
   }
 
-  protected abstract getSerializableProperties(): Omit<T, 'id' | 'color'>;
+  protected abstract getSerializableProperties(): Omit<
+    T,
+    "id" | "color" | "type"
+  >;
 }

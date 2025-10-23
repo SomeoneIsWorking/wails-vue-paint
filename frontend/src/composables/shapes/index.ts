@@ -1,9 +1,26 @@
-export { Shape } from './Shape'
-export { LineShape } from './LineShape'
-export { RectangleShape } from './RectangleShape'
-export { ArrowShape } from './ArrowShape'
-export { TextShape } from './TextShape'
-export { DrawShape } from './DrawShape'
-export { ImageShape } from './ImageShape'
-export { CircleShape } from './CircleShape'
-export { createShapeFromData } from './shapeFactory'
+import { ArrowShape } from "./ArrowShape";
+import { CircleShape } from "./CircleShape";
+import { DrawShape } from "./DrawShape";
+import { ImageShape } from "./ImageShape";
+import { LineShape } from "./LineShape";
+import { RectangleShape } from "./RectangleShape";
+import { TextShape } from "./TextShape";
+
+export {
+  ArrowShape,
+  CircleShape,
+  DrawShape,
+  ImageShape,
+  LineShape,
+  RectangleShape,
+  TextShape,
+};
+
+export type Shape =
+  | ArrowShape
+  | CircleShape
+  | DrawShape
+  | ImageShape
+  | LineShape
+  | RectangleShape
+  | TextShape;

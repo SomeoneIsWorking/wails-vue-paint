@@ -4,14 +4,18 @@ import { useDrawingStore } from "@/stores/drawing";
 
 const store = useDrawingStore();
 
+const properties = ["lineWidth", "fontSize", "fontFamily"] as const;
+
 const commonProperties = computed(() => {
-  if (!store.hasSelection || store.selectedShapes.length === 0)
+  const props = new Set<string>(properties);
+  if (!store.hasSelection || store.selectedShapes.length === 0) {
     return new Set<string>();
-  const first = store.selectedShapes[0];
-  const props = new Set(Object.keys(first));
-  for (const shape of store.selectedShapes.slice(1)) {
-    for (const prop of [...props]) {
-      if (!(prop in shape)) props.delete(prop);
+  }
+  for (const shape of store.selectedShapes) {
+    for (const prop of properties) {
+      if (!(prop in shape)) {
+        props.delete(prop);
+      }
     }
   }
   return props;
@@ -144,12 +148,18 @@ const fontFamilies = [
         max="100"
         :value="store.selectionTolerance ?? 50"
         @input="
-          store.setSelectionTolerance(Number(($event.target as HTMLInputElement).value))
+          store.setSelectionTolerance(
+            Number(($event.target as HTMLInputElement).value)
+          )
         "
         class="input-range w-32"
       />
       <span class="text-xs text-gray-600 dark:text-gray-400 w-7">
-        {{ store.selectionTolerance === undefined ? "?" : store.selectionTolerance }}
+        {{
+          store.selectionTolerance === undefined
+            ? "?"
+            : store.selectionTolerance
+        }}
       </span>
     </div>
 

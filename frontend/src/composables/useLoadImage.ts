@@ -20,7 +20,6 @@ export async function createImageShape(src: string) {
   return new ImageShape(
     "img_" + Date.now(),
     "#000000",
-    0,
     { x: 50, y: 50 },
     src,
     img.width,

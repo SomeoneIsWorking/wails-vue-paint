@@ -1,21 +1,23 @@
 import { ref, computed, type Ref } from "vue";
-import { Shape } from "./Shape";
+import { ShapeClass } from "./Shape";
 import type { Point } from "@/types";
 import { ImageShapeData } from "@/types/shapeData";
+import { Bounds } from "@/utils/Bounds";
 
-export class ImageShape extends Shape<ImageShapeData> {
+export class ImageShape extends ShapeClass<ImageShapeData> {
   startPoint: Ref<Point>;
   imageData: Ref<string>;
   imageWidth: Ref<number>;
   imageHeight: Ref<number>;
 
   protected _bounds = computed(() => {
-    return {
-      x: this.startPoint.value.x,
-      y: this.startPoint.value.y,
-      width: this.imageWidth.value,
-      height: this.imageHeight.value,
-    };
+    return new Bounds([
+      this.startPoint.value,
+      {
+        x: this.startPoint.value.x + this.imageWidth.value,
+        y: this.startPoint.value.y + this.imageHeight.value,
+      },
+    ]);
   });
 
   constructor(
@@ -27,7 +29,7 @@ export class ImageShape extends Shape<ImageShapeData> {
     imageHeight: number,
     element?: SVGElement
   ) {
-    super(id, color, element);
+    super(id, "image", color, element);
     this.startPoint = ref(startPoint);
     this.imageData = ref(imageData);
     this.imageWidth = ref(imageWidth);
@@ -58,18 +60,22 @@ export class ImageShape extends Shape<ImageShapeData> {
     const currentW = this.imageWidth.value;
     const currentH = this.imageHeight.value;
 
-    if (index === 0) { // top-left
+    if (index === 0) {
+      // top-left
       this.startPoint.value = newPoint;
       this.imageWidth.value = currentW + (currentX - newPoint.x);
       this.imageHeight.value = currentH + (currentY - newPoint.y);
-    } else if (index === 1) { // top-right
+    } else if (index === 1) {
+      // top-right
       this.startPoint.value.y = newPoint.y;
       this.imageWidth.value = newPoint.x - currentX;
       this.imageHeight.value = currentH + (currentY - newPoint.y);
-    } else if (index === 2) { // bottom-right
+    } else if (index === 2) {
+      // bottom-right
       this.imageWidth.value = newPoint.x - currentX;
       this.imageHeight.value = newPoint.y - currentY;
-    } else if (index === 3) { // bottom-left
+    } else if (index === 3) {
+      // bottom-left
       this.startPoint.value.x = newPoint.x;
       this.imageHeight.value = newPoint.y - currentY;
       this.imageWidth.value = currentW + (currentX - newPoint.x);
@@ -78,7 +84,6 @@ export class ImageShape extends Shape<ImageShapeData> {
 
   protected getSerializableProperties() {
     return {
-      type: "image" as const,
       startPoint: this.startPoint.value,
       imageData: this.imageData.value,
       imageWidth: this.imageWidth.value,

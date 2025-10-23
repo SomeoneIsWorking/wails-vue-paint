@@ -1,36 +1,22 @@
 import { computed, type Ref, ref } from "vue";
-import { Shape } from "./Shape";
+import { ShapeClass } from "./Shape";
 import type { Point } from "@/types";
 import { DrawShapeData } from "@/types/shapeData";
+import { Bounds } from "@/utils/Bounds";
 
-export class DrawShape extends Shape<DrawShapeData> {
+export class DrawShape extends ShapeClass<DrawShapeData> {
   points: Ref<Point[]>;
   lineWidth: Ref<number>;
 
   constructor(id: string, color: string, lineWidth: number, points: Point[]) {
-    super(id, color);
+    super(id, "draw", color);
     this.points = ref(points);
     this.lineWidth = ref(lineWidth);
   }
 
   protected _bounds = computed(() => {
     const points = this.points.value;
-    if (points.length === 0) {
-      return { x: 0, y: 0, width: 0, height: 0 };
-    }
-
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const maxX = Math.max(...xs);
-    const maxY = Math.max(...ys);
-    return {
-      x: minX - this.lineWidth.value / 2,
-      y: minY - this.lineWidth.value / 2,
-      width: maxX - minX + this.lineWidth.value,
-      height: maxY - minY + this.lineWidth.value,
-    };
+    return new Bounds(points).extend(this.lineWidth.value);
   });
 
   push(point: Point): void {
@@ -62,7 +48,6 @@ export class DrawShape extends Shape<DrawShapeData> {
 
   protected getSerializableProperties() {
     return {
-      type: "draw" as const,
       lineWidth: this.lineWidth.value,
       points: this.points.value,
     };

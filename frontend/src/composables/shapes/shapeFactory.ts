@@ -1,5 +1,5 @@
 import { ShapeData } from "@/types/shapeData";
-import { Shape } from "./Shape";
+import { ShapeClass } from "./Shape";
 import {
   LineShape,
   RectangleShape,
@@ -10,7 +10,7 @@ import {
   CircleShape,
 } from "./index";
 
-export function createShapeFromData(data: ShapeData): Shape<any> {
+export function createShapeFromData(data: ShapeData): ShapeClass<any> {
   switch (data.type) {
     case "line":
       return new LineShape(

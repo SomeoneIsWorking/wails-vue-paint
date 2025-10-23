@@ -2,16 +2,8 @@
 import { ref, onMounted, computed } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
 import { useCanvasDrawing } from "@/composables/useCanvasDrawing";
-import {
-  DrawShape,
-  ImageShape,
-  TextShape,
-  LineShape,
-  ArrowShape,
-  RectangleShape,
-} from "@/composables/shapes";
 import type { Point } from "@/types";
-import { generateSmoothPath, isPointInBounds } from "@/utils/shapeHelpers";
+import { generateSmoothPath, findClosestSegment } from "@/utils/shapeHelpers";
 
 const store = useDrawingStore();
 
@@ -29,7 +21,7 @@ const {
   draw,
   stopDrawing,
   drawText,
-  getSVGCoordinates: getBaseSVGCoordinates,
+  getBaseSVGCoordinates,
   previewShape,
 } = useCanvasDrawing(svgRef);
 
@@ -68,35 +60,61 @@ const getSVGCoordinates = (event: MouseEvent) => {
   return { x: adjustedX, y: adjustedY };
 };
 
-const handlePointEditMouseDown = (coords: Point) => {
+const handlePointEditMouseDown = (coords: Point, event: MouseEvent) => {
   const selectedShape = store.pointEditSelectedShape;
   if (selectedShape) {
     // Check if clicking on a draggable point of the selected shape
     const points = selectedShape.getDraggablePoints();
+    let clickedPointIndex = -1;
     for (let i = 0; i < points.length; i++) {
       const point = points[i];
-      const distance = Math.sqrt((coords.x - point.x) ** 2 + (coords.y - point.y) ** 2);
-      if (distance <= 10 / store.zoomLevel) { // 10px hit radius, adjusted for zoom
-        store.setSelectedPointIndex(i);
-        store.setDraggedPointIndex(i);
-        return;
+      const distance = Math.sqrt(
+        (coords.x - point.x) ** 2 + (coords.y - point.y) ** 2
+      );
+      if (distance <= 10 / store.zoomLevel) {
+        // 10px hit radius, adjusted for zoom
+        clickedPointIndex = i;
+        break;
       }
     }
-  }
 
-  // Not on a point of selected shape, find shape at position
-  const clickedShape = store.shapes.find(shape => isPointInBounds(coords, shape.bounds));
-
-  if (clickedShape) {
-    store.setPointEditSelectedShape(clickedShape.id);
+    if (clickedPointIndex !== -1) {
+      if (event.shiftKey) {
+        // Toggle selection
+        const index = store.selectedPointIndices.indexOf(clickedPointIndex);
+        if (index !== -1) {
+          store.selectedPointIndices.splice(index, 1);
+        } else {
+          store.selectedPointIndices.push(clickedPointIndex);
+        }
+      } else {
+        store.setSelectedPointIndices([clickedPointIndex]);
+      }
+      store.setDraggedPointIndex(clickedPointIndex);
+    } else {
+      // Start drag selection for points
+      store.startDragSelection(coords.x, coords.y);
+    }
   } else {
-    store.setPointEditSelectedShape(null);
+    // Not on a shape, find shape at position
+    const clickedShape = store.shapes.find((shape) =>
+      shape.bounds.containsPoint(coords)
+    );
+
+    if (clickedShape) {
+      store.setPointEditSelectedShape(clickedShape.id);
+    } else {
+      store.setPointEditSelectedShape(null);
+    }
   }
 };
 
 const handlePointDragging = (coords: Point) => {
   if (store.pointEditSelectedShape && store.draggedPointIndex !== null) {
-    store.pointEditSelectedShape.updateDraggablePoint(store.draggedPointIndex, coords);
+    store.pointEditSelectedShape.updateDraggablePoint(
+      store.draggedPointIndex,
+      coords
+    );
   }
 };
 
@@ -104,11 +122,6 @@ const isCurrentlyDrawing = ref(false);
 
 const handleMouseDown = (event: MouseEvent) => {
   if (textInputVisible.value) {
-    return;
-  }
-
-  const svg = svgRef.value;
-  if (!svg) {
     return;
   }
 
@@ -122,7 +135,7 @@ const handleMouseDown = (event: MouseEvent) => {
   const coords = getSVGCoordinates(event);
 
   if (store.currentTool === "pointEdit") {
-    handlePointEditMouseDown(coords);
+    handlePointEditMouseDown(coords, event);
     return;
   }
 
@@ -156,7 +169,11 @@ const handleMouseMove = (event: MouseEvent) => {
     return;
   }
 
-  if (store.currentTool === "pointEdit" && store.draggedPointIndex !== null && store.pointEditSelectedShape) {
+  if (
+    store.currentTool === "pointEdit" &&
+    store.draggedPointIndex !== null &&
+    store.pointEditSelectedShape
+  ) {
     const coords = getSVGCoordinates(event);
     handlePointDragging(coords);
     return;
@@ -166,8 +183,9 @@ const handleMouseMove = (event: MouseEvent) => {
     !isCurrentlyDrawing.value &&
     !store.isDraggingShapes &&
     !store.isDragSelecting
-  )
+  ) {
     return;
+  }
   const coords = getSVGCoordinates(event);
   draw(coords.x, coords.y);
 };
@@ -211,6 +229,29 @@ const handleMouseLeave = () => {
   ) {
     stopDrawing();
     isCurrentlyDrawing.value = false;
+  }
+};
+
+const handleDoubleClick = (event: MouseEvent) => {
+  if (
+    store.currentTool === "pointEdit" &&
+    store.pointEditSelectedShape?.type === "draw"
+  ) {
+    const coords = getSVGCoordinates(event);
+    const points = store.pointEditSelectedShape.points.value;
+
+    if (points.length >= 2) {
+      const { insertIndex } = findClosestSegment(points, coords);
+
+      // Insert the new point at cursor position
+      points.splice(insertIndex, 0, coords);
+
+      // Update the shape
+      store.pointEditSelectedShape.points.value = [...points];
+
+      // Save state
+      store.saveStateToBackend();
+    }
   }
 };
 
@@ -301,6 +342,7 @@ onMounted(async () => {
       ref="svgRef"
       class="absolute top-0 left-0 w-full h-full"
       @mousedown="handleMouseDown"
+      @dblclick="handleDoubleClick"
       @mousemove="handleMouseMove"
       @mouseup="handleMouseUp"
       @mouseleave="handleMouseLeave"
@@ -320,7 +362,7 @@ onMounted(async () => {
         >
           <!-- Lines -->
           <line
-            v-if="shape instanceof LineShape"
+            v-if="shape.type === 'line'"
             :x1="shape.startPoint.value.x"
             :y1="shape.startPoint.value.y"
             :x2="shape.endPoint.value.x"
@@ -332,13 +374,11 @@ onMounted(async () => {
 
           <!-- Rectangles -->
           <rect
-            v-else-if="shape instanceof RectangleShape"
-            :x="Math.min(shape.startPoint.value.x, shape.endPoint.value.x)"
-            :y="Math.min(shape.startPoint.value.y, shape.endPoint.value.y)"
-            :width="Math.abs(shape.endPoint.value.x - shape.startPoint.value.x)"
-            :height="
-              Math.abs(shape.endPoint.value.y - shape.startPoint.value.y)
-            "
+            v-else-if="shape.type === 'rectangle'"
+            :x="shape.drawBounds.value.left"
+            :y="shape.drawBounds.value.top"
+            :width="shape.drawBounds.value.width"
+            :height="shape.drawBounds.value.height"
             :stroke="shape.color.value"
             :stroke-width="shape.lineWidth.value"
             fill="none"
@@ -346,7 +386,7 @@ onMounted(async () => {
 
           <!-- Freehand drawing -->
           <path
-            v-else-if="shape instanceof DrawShape"
+            v-else-if="shape.type === 'draw'"
             :d="generateSmoothPath(shape.points.value)"
             :stroke="shape.color.value"
             :stroke-width="shape.lineWidth.value"
@@ -357,7 +397,7 @@ onMounted(async () => {
 
           <!-- Text -->
           <text
-            v-else-if="shape instanceof TextShape"
+            v-else-if="shape.type === 'text'"
             :x="shape.startPoint.value.x"
             :y="shape.startPoint.value.y"
             :fill="shape.color.value"
@@ -376,7 +416,7 @@ onMounted(async () => {
 
           <!-- Images -->
           <image
-            v-else-if="shape instanceof ImageShape"
+            v-else-if="shape.type === 'image'"
             :href="shape.imageData.value"
             :x="shape.startPoint.value.x"
             :y="shape.startPoint.value.y"
@@ -385,7 +425,7 @@ onMounted(async () => {
           />
 
           <!-- Arrows -->
-          <g v-else-if="shape instanceof ArrowShape">
+          <g v-else-if="shape.type === 'arrow'">
             <line
               :x1="shape.startPoint.value.x"
               :y1="shape.startPoint.value.y"
@@ -409,8 +449,8 @@ onMounted(async () => {
           v-if="store.currentTool === 'select'"
           :key="'selection-' + index"
           class="selection-box"
-          :x="bounds.x - 3"
-          :y="bounds.y - 3"
+          :x="bounds.left - 3"
+          :y="bounds.top - 3"
           :width="bounds.width + 6"
           :height="bounds.height + 6"
           stroke="#3B82F6"
@@ -423,8 +463,8 @@ onMounted(async () => {
         <rect
           v-if="store.isDragSelecting && store.dragSelectBounds"
           class="drag-selection-box"
-          :x="store.dragSelectBounds.x"
-          :y="store.dragSelectBounds.y"
+          :x="store.dragSelectBounds.left"
+          :y="store.dragSelectBounds.top"
           :width="store.dragSelectBounds.width"
           :height="store.dragSelectBounds.height"
           stroke="#3B82F6"
@@ -439,8 +479,8 @@ onMounted(async () => {
           v-for="(bounds, index) in previewBounds"
           :key="'preview-' + index"
           class="preview-box"
-          :x="bounds.x - 3"
-          :y="bounds.y - 3"
+          :x="bounds.left - 3"
+          :y="bounds.top - 3"
           :width="bounds.width + 6"
           :height="bounds.height + 6"
           stroke="#FF8800"
@@ -451,17 +491,25 @@ onMounted(async () => {
         />
 
         <!-- Draggable points for point edit -->
-        <g v-if="store.currentTool === 'pointEdit' && store.pointEditSelectedShape">
+        <g
+          v-if="
+            store.currentTool === 'pointEdit' && store.pointEditSelectedShape
+          "
+        >
           <circle
-            v-for="(point, index) in store.pointEditSelectedShape.getDraggablePoints()"
+            v-for="(
+              point, index
+            ) in store.pointEditSelectedShape.getDraggablePoints()"
             :key="'point-' + index"
             :cx="point.x"
             :cy="point.y"
             r="5"
-            :fill="index === store.selectedPointIndex ? '#FF0000' : '#3B82F6'"
+            :fill="
+              store.selectedPointIndices.includes(index) ? '#FF0000' : '#3B82F6'
+            "
             stroke="#FFFFFF"
             stroke-width="2"
-            style="cursor: move;"
+            style="cursor: move"
           />
         </g>
       </g>

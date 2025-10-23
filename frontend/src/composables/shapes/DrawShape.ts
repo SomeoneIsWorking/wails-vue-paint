@@ -36,10 +36,10 @@ export class DrawShape extends Shape<DrawShapeData> {
   }
 
   move(deltaX: number, deltaY: number): void {
-    this.points.value = this.points.value.map((p) => ({
-      x: p.x + deltaX,
-      y: p.y + deltaY,
-    }));
+    for (const point of this.points.value) {
+      point.x += deltaX;
+      point.y += deltaY;
+    }
   }
 
   protected getSerializableProperties() {

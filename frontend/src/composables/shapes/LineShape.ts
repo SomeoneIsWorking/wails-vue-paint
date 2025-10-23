@@ -1,13 +1,24 @@
-import { ref, computed, type Ref, ComputedRef } from "vue";
+import { ref, computed, type Ref } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds } from "@/types";
+import type { Point } from "@/types";
 import { LineShapeData } from "@/types/shapeData";
 
 export class LineShape extends Shape<LineShapeData> {
   startPoint: Ref<Point>;
   endPoint: Ref<Point>;
 
-  protected _bounds: ComputedRef<Bounds>;
+  protected _bounds = computed(() => {
+    const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
+    const minY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
+    const maxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
+    const maxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
+    return {
+      x: minX - this.lineWidth.value / 2,
+      y: minY - this.lineWidth.value / 2,
+      width: maxX - minX + this.lineWidth.value,
+      height: maxY - minY + this.lineWidth.value,
+    };
+  });
 
   constructor(
     id: string,
@@ -20,19 +31,6 @@ export class LineShape extends Shape<LineShapeData> {
     super(id, color, lineWidth, element);
     this.startPoint = ref(startPoint);
     this.endPoint = ref(endPoint);
-
-    this._bounds = computed(() => {
-      const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
-      const minY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
-      const maxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
-      const maxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
-      return {
-        x: minX - this.lineWidth.value / 2,
-        y: minY - this.lineWidth.value / 2,
-        width: maxX - minX + this.lineWidth.value,
-        height: maxY - minY + this.lineWidth.value,
-      };
-    });
   }
 
   move(deltaX: number, deltaY: number): void {

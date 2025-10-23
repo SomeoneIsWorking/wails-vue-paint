@@ -1,6 +1,6 @@
-import { ref, computed, type Ref, ComputedRef } from "vue";
+import { ref, computed, type Ref } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds } from "@/types";
+import type { Point } from "@/types";
 import { TextShapeData } from "@/types/shapeData";
 
 export class TextShape extends Shape<TextShapeData> {
@@ -9,7 +9,18 @@ export class TextShape extends Shape<TextShapeData> {
   fontSize: Ref<number>;
   fontFamily: Ref<string>;
 
-  protected _bounds: ComputedRef<Bounds>;
+  protected _bounds = computed(() => {
+    const lines = this.text.value.split("\n");
+    const lineHeight = this.fontSize.value * 1.2;
+    const maxLineLength = Math.max(...lines.map((line) => line.length));
+
+    return {
+      x: this.startPoint.value.x,
+      y: this.startPoint.value.y - this.fontSize.value,
+      width: maxLineLength * this.fontSize.value * 0.6,
+      height: lines.length * lineHeight,
+    };
+  });
 
   constructor(
     id: string,
@@ -18,26 +29,13 @@ export class TextShape extends Shape<TextShapeData> {
     startPoint: Point,
     text: string,
     fontSize: number,
-    fontFamily: string,
+    fontFamily: string
   ) {
     super(id, color, lineWidth);
     this.startPoint = ref(startPoint);
     this.text = ref(text);
     this.fontSize = ref(fontSize);
     this.fontFamily = ref(fontFamily);
-
-    this._bounds = computed(() => {
-      const lines = this.text.value.split("\n");
-      const lineHeight = this.fontSize.value * 1.2;
-      const maxLineLength = Math.max(...lines.map((line) => line.length));
-
-      return {
-        x: this.startPoint.value.x,
-        y: this.startPoint.value.y - this.fontSize.value,
-        width: maxLineLength * this.fontSize.value * 0.6,
-        height: lines.length * lineHeight,
-      };
-    });
   }
 
   move(deltaX: number, deltaY: number): void {

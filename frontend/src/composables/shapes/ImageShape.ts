@@ -1,6 +1,7 @@
-import { ref, computed, type Ref, ComputedRef } from "vue";
+import { ref, computed, type Ref } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, ImageShapeData } from "@/types";
+import type { Point } from "@/types";
+import { ImageShapeData } from "@/types/shapeData";
 
 export class ImageShape extends Shape<ImageShapeData> {
   startPoint: Ref<Point>;
@@ -8,7 +9,14 @@ export class ImageShape extends Shape<ImageShapeData> {
   imageWidth: Ref<number>;
   imageHeight: Ref<number>;
 
-  protected _bounds: ComputedRef<Bounds>;
+  protected _bounds = computed(() => {
+    return {
+      x: this.startPoint.value.x,
+      y: this.startPoint.value.y,
+      width: this.imageWidth.value,
+      height: this.imageHeight.value,
+    };
+  });
 
   constructor(
     id: string,
@@ -25,15 +33,6 @@ export class ImageShape extends Shape<ImageShapeData> {
     this.imageData = ref(imageData);
     this.imageWidth = ref(imageWidth);
     this.imageHeight = ref(imageHeight);
-
-    this._bounds = computed(() => {
-      return {
-        x: this.startPoint.value.x,
-        y: this.startPoint.value.y,
-        width: this.imageWidth.value,
-        height: this.imageHeight.value,
-      };
-    });
   }
 
   move(deltaX: number, deltaY: number): void {
@@ -41,9 +40,9 @@ export class ImageShape extends Shape<ImageShapeData> {
     this.startPoint.value.y += deltaY;
   }
 
-  protected getSerializableProperties(): Omit<ImageShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties() {
     return {
-      type: "image",
+      type: "image" as const,
       startPoint: this.startPoint.value,
       imageData: this.imageData.value,
       imageWidth: this.imageWidth.value,

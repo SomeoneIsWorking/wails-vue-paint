@@ -1,6 +1,7 @@
 import { ref, computed, type Ref, ComputedRef } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, ArrowShapeData } from "@/types";
+import type { Point, Bounds } from "@/types";
+import { ArrowShapeData } from "@/types/shapeData";
 
 export class ArrowShape extends Shape<ArrowShapeData> {
   startPoint: Ref<Point>;
@@ -41,11 +42,29 @@ export class ArrowShape extends Shape<ArrowShapeData> {
     this.endPoint.value.y += deltaY;
   }
 
-  protected getSerializableProperties(): Omit<ArrowShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties(){
     return {
-      type: "arrow",
+      type: "arrow" as const,
       startPoint: this.startPoint.value,
       endPoint: this.endPoint.value,
     };
   }
+
+  arrowHeadPoints = computed((): string => {
+    const start = this.startPoint.value;
+    const end = this.endPoint.value;
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const arrowSize = 10 * this.lineWidth.value;
+
+    const point1 = {
+      x: end.x - arrowSize * Math.cos(angle - Math.PI / 6),
+      y: end.y - arrowSize * Math.sin(angle - Math.PI / 6),
+    };
+    const point2 = {
+      x: end.x - arrowSize * Math.cos(angle + Math.PI / 6),
+      y: end.y - arrowSize * Math.sin(angle + Math.PI / 6),
+    };
+
+    return `${end.x},${end.y} ${point1.x},${point1.y} ${point2.x},${point2.y}`;
+  });
 }

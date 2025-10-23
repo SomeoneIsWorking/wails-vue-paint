@@ -1,6 +1,7 @@
 import { ref, computed, type Ref, ComputedRef } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, CircleShapeData } from "@/types";
+import type { Point, Bounds } from "@/types";
+import { CircleShapeData } from "@/types/shapeData";
 
 export class CircleShape extends Shape<CircleShapeData> {
   startPoint: Ref<Point>;
@@ -41,9 +42,9 @@ export class CircleShape extends Shape<CircleShapeData> {
     this.endPoint.value.y += deltaY;
   }
 
-  protected getSerializableProperties(): Omit<CircleShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties() {
     return {
-      type: "circle",
+      type: "circle" as const,
       startPoint: this.startPoint.value,
       endPoint: this.endPoint.value,
     };

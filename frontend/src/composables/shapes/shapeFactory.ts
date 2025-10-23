@@ -1,3 +1,4 @@
+import { ShapeData } from "@/types/shapeData";
 import { Shape } from "./Shape";
 import {
   LineShape,
@@ -9,80 +10,66 @@ import {
   CircleShape,
 } from "./index";
 
-export function createShapeFromData(data: any): Shape<any> {
-  const {
-    id,
-    type,
-    color,
-    lineWidth,
-    startPoint,
-    endPoint,
-    points,
-    pathData,
-    text,
-    fontSize,
-    fontFamily,
-    imageData,
-    imageWidth,
-    imageHeight,
-    element,
-  } = data;
-
-  switch (type) {
+export function createShapeFromData(data: ShapeData): Shape<any> {
+  switch (data.type) {
     case "line":
-      return new LineShape(id, color, lineWidth, startPoint, endPoint, element);
+      return new LineShape(
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.startPoint,
+        data.endPoint
+      );
     case "rectangle":
       return new RectangleShape(
-        id,
-        color,
-        lineWidth,
-        startPoint,
-        endPoint,
-        element
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.startPoint,
+        data.endPoint
       );
     case "arrow":
       return new ArrowShape(
-        id,
-        color,
-        lineWidth,
-        startPoint,
-        endPoint,
-        element
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.startPoint,
+        data.endPoint
       );
     case "text":
       return new TextShape(
-        id,
-        color,
-        lineWidth,
-        startPoint,
-        text,
-        fontSize,
-        fontFamily,
-        element
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.startPoint,
+        data.text,
+        data.fontSize,
+        data.fontFamily
       );
     case "draw":
-      return new DrawShape(id, color, lineWidth, points, pathData, element);
+      return new DrawShape(
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.points
+      );
     case "image":
       return new ImageShape(
-        id,
-        color,
-        lineWidth,
-        startPoint,
-        imageData,
-        imageWidth,
-        imageHeight,
-        element
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.startPoint,
+        data.imageData,
+        data.imageWidth,
+        data.imageHeight
       );
     case "circle":
       return new CircleShape(
-        id,
-        color,
-        lineWidth,
-        startPoint,
-        endPoint,
-        element
+        data.id,
+        data.color,
+        data.lineWidth,
+        data.startPoint,
+        data.endPoint
       );
-    default:
-      throw new Error(`Unknown shape type: ${type}`);
   }
 }

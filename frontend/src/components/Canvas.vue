@@ -2,30 +2,32 @@
 import { ref, onMounted, computed } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
 import { useCanvasDrawing } from "@/composables/useCanvasDrawing";
-import { useHistory } from "@/composables/useHistory";
-import { DrawShape, ImageShape, TextShape, LineShape, ArrowShape, RectangleShape } from "@/composables/shapes";
+import {
+  DrawShape,
+  ImageShape,
+  TextShape,
+  LineShape,
+  ArrowShape,
+  RectangleShape,
+} from "@/composables/shapes";
 import type { Point } from "@/types";
 
 const store = useDrawingStore();
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
-const backgroundImageRef = ref<SVGImageElement | null>(null);
-const canvasRef = ref<HTMLCanvasElement | null>(null); // For history
 const textInputVisible = ref(false);
-const textInputPosition = ref({ x: 0, y: 0 }); // Screen position for display
-const textInputSVGPosition = ref({ x: 0, y: 0 }); // SVG position for drawing
+const textInputPosition = ref({ x: 0, y: 0 } as Point); // Screen position for display
+const textInputSVGPosition = ref({ x: 0, y: 0 } as Point); // SVG position for drawing
 const textInputValue = ref("");
 const textInputRef = ref<HTMLTextAreaElement | null>(null);
-const panStartPoint = ref<{ x: number; y: number } | null>(null);
+const panStartPoint = ref<Point | null>(null);
 
 const {
   onPointerDown,
   draw,
   stopDrawing,
   drawText,
-  clearShapes,
-  deleteSelectedShapes,
   getSVGCoordinates: getBaseSVGCoordinates,
   previewShape,
 } = useCanvasDrawing(svgRef);
@@ -43,23 +45,6 @@ const previewBounds = computed(() => {
     .filter((s) => store.dragSelectPreviewShapeIds.includes(s.id))
     .map((s) => s.bounds);
 });
-
-// Helper for arrow heads
-const getArrowHeadPoints = (start: Point, end: Point): string => {
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
-  const arrowSize = 10;
-
-  const point1 = {
-    x: end.x - arrowSize * Math.cos(angle - Math.PI / 6),
-    y: end.y - arrowSize * Math.sin(angle - Math.PI / 6),
-  };
-  const point2 = {
-    x: end.x - arrowSize * Math.cos(angle + Math.PI / 6),
-    y: end.y - arrowSize * Math.sin(angle + Math.PI / 6),
-  };
-
-  return `${end.x},${end.y} ${point1.x},${point1.y} ${point2.x},${point2.y}`;
-};
 
 // Computed transform string for SVG content
 const contentTransform = computed(() => {
@@ -82,67 +67,7 @@ const getSVGCoordinates = (event: MouseEvent) => {
   return { x: adjustedX, y: adjustedY };
 };
 
-const { saveState, undo, redo, canUndo, canRedo } = useHistory(canvasRef);
-
 const isCurrentlyDrawing = ref(false);
-
-const loadImage = async (dataUrl: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // Create an image shape that can be moved
-      const imageShape = new ImageShape(
-        "img_" + Date.now(),
-        "#000000",
-        0,
-        { x: 50, y: 50 },
-        dataUrl,
-        img.width,
-        img.height
-      );
-
-      store.addShape(imageShape);
-      saveState();
-      resolve();
-    };
-
-    img.onerror = () => {
-      reject(new Error("Failed to load image"));
-    };
-
-    img.src = dataUrl;
-  });
-};
-
-const clear = () => {
-  clearShapes();
-
-  // Clear background image
-  if (backgroundImageRef.value) {
-    backgroundImageRef.value.remove();
-    backgroundImageRef.value = null;
-  }
-
-  saveState();
-};
-
-const getImageData = (): string | null => {
-  const svg = svgRef.value;
-  if (!svg) return null;
-
-  // Serialize SVG to string
-  const serializer = new XMLSerializer();
-  const svgString = serializer.serializeToString(svg);
-
-  // Create blob and data URL
-  const svgBlob = new Blob([svgString], {
-    type: "image/svg+xml;charset=utf-8",
-  });
-
-  // For now, return SVG as data URL
-  // In production, you might want to convert to PNG using canvas
-  return URL.createObjectURL(svgBlob);
-};
 
 const handleMouseDown = (event: MouseEvent) => {
   if (textInputVisible.value) {
@@ -217,9 +142,6 @@ const handleMouseUp = () => {
     store.isDragSelecting
   ) {
     stopDrawing();
-    if (isCurrentlyDrawing.value) {
-      saveState();
-    }
     isCurrentlyDrawing.value = false;
   }
 };
@@ -292,7 +214,6 @@ const commitTextInput = () => {
       textInputSVGPosition.value.y,
       trimmedText
     );
-    saveState();
   }
   cancelTextInput();
 };
@@ -310,21 +231,7 @@ onMounted(() => {
     // Set SVG size to container size
     svg.setAttribute("width", container.clientWidth.toString());
     svg.setAttribute("height", container.clientHeight.toString());
-
-    // Initial save state
-    saveState();
   }
-});
-
-defineExpose({
-  loadImage,
-  clear,
-  getImageData,
-  undo,
-  redo,
-  canUndo,
-  canRedo,
-  deleteSelectedShapes,
 });
 </script>
 
@@ -372,7 +279,9 @@ defineExpose({
             :x="Math.min(shape.startPoint.value.x, shape.endPoint.value.x)"
             :y="Math.min(shape.startPoint.value.y, shape.endPoint.value.y)"
             :width="Math.abs(shape.endPoint.value.x - shape.startPoint.value.x)"
-            :height="Math.abs(shape.endPoint.value.y - shape.startPoint.value.y)"
+            :height="
+              Math.abs(shape.endPoint.value.y - shape.startPoint.value.y)
+            "
             :stroke="shape.color.value"
             :stroke-width="shape.lineWidth.value"
             fill="none"
@@ -381,7 +290,9 @@ defineExpose({
           <!-- Freehand drawing -->
           <path
             v-else-if="shape instanceof DrawShape"
-            :d="`M ${shape.points.value.map((p) => `${p.x},${p.y}`).join(' L ')}`"
+            :d="`M ${shape.points.value
+              .map((p) => `${p.x},${p.y}`)
+              .join(' L ')}`"
             :stroke="shape.color.value"
             :stroke-width="shape.lineWidth.value"
             stroke-linecap="round"
@@ -419,9 +330,7 @@ defineExpose({
           />
 
           <!-- Arrows -->
-          <g
-            v-else-if="shape instanceof ArrowShape"
-          >
+          <g v-else-if="shape instanceof ArrowShape">
             <line
               :x1="shape.startPoint.value.x"
               :y1="shape.startPoint.value.y"
@@ -433,7 +342,7 @@ defineExpose({
             />
             <!-- Arrow head - computed inline -->
             <polygon
-              :points="getArrowHeadPoints(shape.startPoint.value, shape.endPoint.value)"
+              :points="shape.arrowHeadPoints.value"
               :fill="shape.color.value"
             />
           </g>

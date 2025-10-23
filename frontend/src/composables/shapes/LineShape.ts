@@ -1,6 +1,7 @@
 import { ref, computed, type Ref, ComputedRef } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, LineShapeData } from "@/types";
+import type { Point, Bounds } from "@/types";
+import { LineShapeData } from "@/types/shapeData";
 
 export class LineShape extends Shape<LineShapeData> {
   startPoint: Ref<Point>;
@@ -41,9 +42,9 @@ export class LineShape extends Shape<LineShapeData> {
     this.endPoint.value.y += deltaY;
   }
 
-  protected getSerializableProperties(): Omit<LineShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties() {
     return {
-      type: "line",
+      type: "line" as const,
       startPoint: this.startPoint.value,
       endPoint: this.endPoint.value,
     };

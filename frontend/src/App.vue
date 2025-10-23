@@ -11,10 +11,10 @@ import { useDrawingStore } from "./stores/drawing";
 import { SaveImage, GetClipboardImage } from "../wailsjs/go/main/App";
 // @ts-ignore
 import { Environment } from "../wailsjs/runtime/runtime";
+import { createImageShape } from "./composables/useLoadImage";
 
 const store = useDrawingStore();
 const isMac = ref(false);
-const canvasRef = ref<InstanceType<typeof Canvas> | null>(null);
 
 const handlePaste = async () => {
   console.log("[handlePaste] Paste function called");
@@ -25,16 +25,14 @@ const handlePaste = async () => {
       `[handlePaste] Got response, imageData length: ${imageData?.length || 0}`
     );
 
-    if (imageData && canvasRef.value) {
+    if (imageData) {
       console.log("[handlePaste] Loading image to canvas...");
-      await canvasRef.value.loadImage(imageData);
+      const shape = await createImageShape(imageData);
+      store.addShape(shape);
       console.log("[handlePaste] Image loaded successfully!");
     } else if (!imageData) {
       console.log("[handlePaste] ERROR: No image data returned from clipboard");
       alert("No image data returned from clipboard");
-    } else if (!canvasRef.value) {
-      console.log("[handlePaste] ERROR: Canvas not ready");
-      alert("Canvas not ready");
     }
   } catch (error) {
     console.log(`[handlePaste] ERROR: ${error}`);
@@ -43,48 +41,16 @@ const handlePaste = async () => {
   }
 };
 
-const handleExport = async () => {
-  if (!canvasRef.value) return;
-
-  const imageData = canvasRef.value.getImageData();
-  if (!imageData) return;
-
-  // Remove data URL prefix
-  const base64Data = imageData.split(",")[1];
-
-  try {
-    const filepath = await SaveImage(base64Data, "png");
-    alert(`Image saved to: ${filepath}`);
-  } catch (error) {
-    console.error("Failed to save image:", error);
-    alert("Failed to save image");
-  }
-};
-
 const handleClear = () => {
-  if (canvasRef.value && confirm("Clear canvas?")) {
-    canvasRef.value.clear();
-  }
-};
-
-const handleUndo = () => {
-  if (canvasRef.value) {
-    canvasRef.value.undo();
-  }
-};
-
-const handleRedo = () => {
-  if (canvasRef.value) {
-    canvasRef.value.redo();
-  }
+  store.clearShapes();
 };
 
 const handleKeyDown = (event: KeyboardEvent) => {
   // Delete/Backspace to delete selected shapes
-  if (event.key === 'Backspace' || event.key === 'Delete') {
-    if (canvasRef.value && store.hasSelection) {
+  if (event.key === "Backspace" || event.key === "Delete") {
+    if (store.hasSelection) {
       event.preventDefault();
-      canvasRef.value.deleteSelectedShapes();
+      store.deleteSelectedShapes();
     }
   }
   // Command/Ctrl + V for paste
@@ -101,7 +67,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
     !event.shiftKey
   ) {
     event.preventDefault();
-    handleUndo();
   }
   // Command/Ctrl + Shift + Z for redo
   else if (
@@ -110,12 +75,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
     event.key === "z"
   ) {
     event.preventDefault();
-    handleRedo();
-  }
-  // Command/Ctrl + S for save
-  else if ((event.metaKey || event.ctrlKey) && event.key === "s") {
-    event.preventDefault();
-    handleExport();
   }
   // Escape to deselect
   else if (event.key === "Escape") {
@@ -138,28 +97,10 @@ const headerButtons = [
     primary: false,
   },
   {
-    icon: "M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6",
-    onClick: handleUndo,
-    tooltip: { mac: "Undo (⌘Z)", win: "Undo (Ctrl+Z)" },
-    primary: false,
-  },
-  {
-    icon: "M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6",
-    onClick: handleRedo,
-    tooltip: { mac: "Redo (⌘⇧Z)", win: "Redo (Ctrl+Shift+Z)" },
-    primary: false,
-  },
-  {
     icon: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
     onClick: handleClear,
     tooltip: { mac: "Clear Canvas", win: "Clear Canvas" },
     primary: false,
-  },
-  {
-    icon: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4",
-    onClick: handleExport,
-    tooltip: { mac: "Export (⌘S)", win: "Export (Ctrl+S)" },
-    primary: true,
   },
 ];
 

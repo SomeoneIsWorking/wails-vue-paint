@@ -1,12 +1,24 @@
-import { ref, computed, type Ref, ComputedRef } from "vue";
+import { ref, computed, type Ref } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, RectangleShapeData } from "@/types";
+import type { Point } from "@/types";
+import { RectangleShapeData } from "@/types/shapeData";
 
 export class RectangleShape extends Shape<RectangleShapeData> {
   startPoint: Ref<Point>;
   endPoint: Ref<Point>;
 
-  protected _bounds: ComputedRef<Bounds>;
+  protected _bounds = computed(() => {
+    const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
+    const minY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
+    const maxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
+    const maxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
+    return {
+      x: minX - this.lineWidth.value / 2,
+      y: minY - this.lineWidth.value / 2,
+      width: maxX - minX + this.lineWidth.value,
+      height: maxY - minY + this.lineWidth.value,
+    };
+  });
 
   constructor(
     id: string,
@@ -19,19 +31,6 @@ export class RectangleShape extends Shape<RectangleShapeData> {
     super(id, color, lineWidth, element);
     this.startPoint = ref(startPoint);
     this.endPoint = ref(endPoint);
-
-    this._bounds = computed(() => {
-      const minX = Math.min(this.startPoint.value.x, this.endPoint.value.x);
-      const minY = Math.min(this.startPoint.value.y, this.endPoint.value.y);
-      const maxX = Math.max(this.startPoint.value.x, this.endPoint.value.x);
-      const maxY = Math.max(this.startPoint.value.y, this.endPoint.value.y);
-      return {
-        x: minX - this.lineWidth.value / 2,
-        y: minY - this.lineWidth.value / 2,
-        width: maxX - minX + this.lineWidth.value,
-        height: maxY - minY + this.lineWidth.value,
-      };
-    });
   }
 
   move(deltaX: number, deltaY: number): void {
@@ -41,9 +40,9 @@ export class RectangleShape extends Shape<RectangleShapeData> {
     this.endPoint.value.y += deltaY;
   }
 
-  protected getSerializableProperties(): Omit<RectangleShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties() {
     return {
-      type: "rectangle",
+      type: "rectangle" as const,
       startPoint: this.startPoint.value,
       endPoint: this.endPoint.value,
     };

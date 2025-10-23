@@ -1,6 +1,7 @@
 import { ref, computed, type Ref, ComputedRef } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, TextShapeData } from "@/types";
+import type { Point, Bounds } from "@/types";
+import { TextShapeData } from "@/types/shapeData";
 
 export class TextShape extends Shape<TextShapeData> {
   startPoint: Ref<Point>;
@@ -18,9 +19,8 @@ export class TextShape extends Shape<TextShapeData> {
     text: string,
     fontSize: number,
     fontFamily: string,
-    element?: SVGElement
   ) {
-    super(id, color, lineWidth, element);
+    super(id, color, lineWidth);
     this.startPoint = ref(startPoint);
     this.text = ref(text);
     this.fontSize = ref(fontSize);
@@ -45,9 +45,9 @@ export class TextShape extends Shape<TextShapeData> {
     this.startPoint.value.y += deltaY;
   }
 
-  protected getSerializableProperties(): Omit<TextShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties() {
     return {
-      type: "text",
+      type: "text" as const,
       startPoint: this.startPoint.value,
       text: this.text.value,
       fontSize: this.fontSize.value,

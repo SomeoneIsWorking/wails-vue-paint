@@ -1,5 +1,6 @@
 import { ref, type Ref, type ComputedRef } from "vue";
-import type { Bounds, ShapeData } from "@/types";
+import type { Bounds } from "@/types";
+import { ShapeData } from "@/types/shapeData";
 
 export abstract class Shape<T extends ShapeData = any> {
   id: string;

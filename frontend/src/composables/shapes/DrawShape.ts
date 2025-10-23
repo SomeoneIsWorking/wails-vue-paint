@@ -1,57 +1,51 @@
-import { ref, computed, type Ref, ComputedRef } from "vue";
+import { computed, type Ref, ref } from "vue";
 import { Shape } from "./Shape";
-import type { Point, Bounds, DrawShapeData } from "@/types";
+import type { Point } from "@/types";
+import { DrawShapeData } from "@/types/shapeData";
 
 export class DrawShape extends Shape<DrawShapeData> {
   points: Ref<Point[]>;
-  pathData?: Ref<string>;
 
-  protected _bounds: ComputedRef<Bounds>;
-
-  constructor(
-    id: string,
-    color: string,
-    lineWidth: number,
-    points: Point[],
-    pathData?: string,
-    element?: SVGElement
-  ) {
-    super(id, color, lineWidth, element);
+  constructor(id: string, color: string, lineWidth: number, points: Point[]) {
+    super(id, color, lineWidth);
     this.points = ref(points);
-    this.pathData = pathData ? ref(pathData) : undefined;
+  }
 
-    this._bounds = computed(() => {
-      if (this.points.value.length === 0) {
-        return { x: 0, y: 0, width: 0, height: 0 };
-      }
+  protected _bounds = computed(() => {
+    const points = this.points.value;
+    if (points.length === 0) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
 
-      const xs = this.points.value.map((p) => p.x);
-      const ys = this.points.value.map((p) => p.y);
-      const minX = Math.min(...xs);
-      const minY = Math.min(...ys);
-      const maxX = Math.max(...xs);
-      const maxY = Math.max(...ys);
-      return {
-        x: minX - this.lineWidth.value / 2,
-        y: minY - this.lineWidth.value / 2,
-        width: maxX - minX + this.lineWidth.value,
-        height: maxY - minY + this.lineWidth.value,
-      };
-    });
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const maxX = Math.max(...xs);
+    const maxY = Math.max(...ys);
+    return {
+      x: minX - this.lineWidth.value / 2,
+      y: minY - this.lineWidth.value / 2,
+      width: maxX - minX + this.lineWidth.value,
+      height: maxY - minY + this.lineWidth.value,
+    };
+  });
+
+  push(point: Point): void {
+    this.points!.value.push(point);
   }
 
   move(deltaX: number, deltaY: number): void {
-    this.points.value.forEach((p) => {
-      p.x += deltaX;
-      p.y += deltaY;
-    });
+    this.points.value = this.points.value.map((p) => ({
+      x: p.x + deltaX,
+      y: p.y + deltaY,
+    }));
   }
 
-  protected getSerializableProperties(): Omit<DrawShapeData, 'id' | 'color' | 'lineWidth'> {
+  protected getSerializableProperties() {
     return {
-      type: "draw",
+      type: "draw" as const,
       points: this.points.value,
-      pathData: this.pathData?.value,
     };
   }
 }

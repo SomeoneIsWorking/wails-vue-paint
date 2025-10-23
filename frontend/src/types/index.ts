@@ -32,28 +32,6 @@ export interface Bounds {
   height: number
 }
 
-export interface Shape {
-  id: string
-  type: 'line' | 'rectangle' | 'arrow' | 'text' | 'draw' | 'circle' | 'image'
-  color: string
-  lineWidth: number
-  bounds: Bounds
-  // Shape-specific properties
-  startPoint?: Point
-  endPoint?: Point
-  points?: Point[]  // For freehand drawing
-  pathData?: string  // SVG path data for freehand
-  text?: string
-  fontSize?: number
-  fontFamily?: string
-  // Image properties
-  imageData?: string  // Base64 image data
-  imageWidth?: number
-  imageHeight?: number
-  // SVG element reference
-  element?: SVGElement
-}
-
 export interface Annotation {
   id: string
   type: ToolType
@@ -69,3 +47,72 @@ export interface ExportOptions {
   format: 'png' | 'jpeg' | 'webp'
   quality: number  // 0-1 for jpeg/webp
 }
+
+export interface ImageShapeData {
+  type: 'image';
+  id: string;
+  color: string;
+  lineWidth: number;
+  startPoint: Point;
+  imageData: string;
+  imageWidth: number;
+  imageHeight: number;
+}
+
+export interface TextShapeData {
+  type: 'text';
+  id: string;
+  color: string;
+  lineWidth: number;
+  startPoint: Point;
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+}
+
+export interface RectangleShapeData {
+  type: 'rectangle';
+  id: string;
+  color: string;
+  lineWidth: number;
+  startPoint: Point;
+  endPoint: Point;
+}
+
+export interface CircleShapeData {
+  type: 'circle';
+  id: string;
+  color: string;
+  lineWidth: number;
+  startPoint: Point;
+  endPoint: Point;
+}
+
+export interface LineShapeData {
+  type: 'line';
+  id: string;
+  color: string;
+  lineWidth: number;
+  startPoint: Point;
+  endPoint: Point;
+}
+
+export interface ArrowShapeData {
+  type: 'arrow';
+  id: string;
+  color: string;
+  lineWidth: number;
+  startPoint: Point;
+  endPoint: Point;
+}
+
+export interface DrawShapeData {
+  type: 'draw';
+  id: string;
+  color: string;
+  lineWidth: number;
+  points: Point[];
+  pathData?: string;
+}
+
+export type ShapeData = ImageShapeData | TextShapeData | RectangleShapeData | CircleShapeData | LineShapeData | ArrowShapeData | DrawShapeData;

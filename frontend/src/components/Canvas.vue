@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
 import { useCanvasDrawing } from "@/composables/useCanvasDrawing";
 import { useHistory } from "@/composables/useHistory";
+import { DrawShape, ImageShape, TextShape, LineShape, ArrowShape, RectangleShape } from "@/composables/shapes";
 import type { Point } from "@/types";
 
 const store = useDrawingStore();
@@ -23,7 +24,6 @@ const {
   draw,
   stopDrawing,
   drawText,
-  updateShapeProperty,
   clearShapes,
   deleteSelectedShapes,
   getSVGCoordinates: getBaseSVGCoordinates,
@@ -91,17 +91,15 @@ const loadImage = async (dataUrl: string): Promise<void> => {
     const img = new Image();
     img.onload = () => {
       // Create an image shape that can be moved
-      const imageShape = {
-        id: "img_" + Date.now(),
-        type: "image" as const,
-        color: "#000000",
-        lineWidth: 0,
-        imageData: dataUrl,
-        imageWidth: img.width,
-        imageHeight: img.height,
-        startPoint: { x: 50, y: 50 },
-        bounds: { x: 50, y: 50, width: img.width, height: img.height },
-      };
+      const imageShape = new ImageShape(
+        "img_" + Date.now(),
+        "#000000",
+        0,
+        { x: 50, y: 50 },
+        dataUrl,
+        img.width,
+        img.height
+      );
 
       store.addShape(imageShape);
       saveState();
@@ -326,7 +324,6 @@ defineExpose({
   redo,
   canUndo,
   canRedo,
-  updateShapeProperty,
   deleteSelectedShapes,
 });
 </script>
@@ -359,36 +356,34 @@ defineExpose({
         >
           <!-- Lines -->
           <line
-            v-if="shape.type === 'line' && shape.startPoint && shape.endPoint"
-            :x1="shape.startPoint.x"
-            :y1="shape.startPoint.y"
-            :x2="shape.endPoint.x"
-            :y2="shape.endPoint.y"
-            :stroke="shape.color"
-            :stroke-width="shape.lineWidth"
+            v-if="shape instanceof LineShape"
+            :x1="shape.startPoint.value.x"
+            :y1="shape.startPoint.value.y"
+            :x2="shape.endPoint.value.x"
+            :y2="shape.endPoint.value.y"
+            :stroke="shape.color.value"
+            :stroke-width="shape.lineWidth.value"
             stroke-linecap="round"
           />
 
           <!-- Rectangles -->
           <rect
-            v-else-if="
-              shape.type === 'rectangle' && shape.startPoint && shape.endPoint
-            "
-            :x="Math.min(shape.startPoint.x, shape.endPoint.x)"
-            :y="Math.min(shape.startPoint.y, shape.endPoint.y)"
-            :width="Math.abs(shape.endPoint.x - shape.startPoint.x)"
-            :height="Math.abs(shape.endPoint.y - shape.startPoint.y)"
-            :stroke="shape.color"
-            :stroke-width="shape.lineWidth"
+            v-else-if="shape instanceof RectangleShape"
+            :x="Math.min(shape.startPoint.value.x, shape.endPoint.value.x)"
+            :y="Math.min(shape.startPoint.value.y, shape.endPoint.value.y)"
+            :width="Math.abs(shape.endPoint.value.x - shape.startPoint.value.x)"
+            :height="Math.abs(shape.endPoint.value.y - shape.startPoint.value.y)"
+            :stroke="shape.color.value"
+            :stroke-width="shape.lineWidth.value"
             fill="none"
           />
 
           <!-- Freehand drawing -->
           <path
-            v-else-if="shape.type === 'draw' && shape.points"
-            :d="`M ${shape.points.map((p) => `${p.x},${p.y}`).join(' L ')}`"
-            :stroke="shape.color"
-            :stroke-width="shape.lineWidth"
+            v-else-if="shape instanceof DrawShape"
+            :d="`M ${shape.points.value.map((p) => `${p.x},${p.y}`).join(' L ')}`"
+            :stroke="shape.color.value"
+            :stroke-width="shape.lineWidth.value"
             stroke-linecap="round"
             stroke-linejoin="round"
             fill="none"
@@ -396,18 +391,18 @@ defineExpose({
 
           <!-- Text -->
           <text
-            v-else-if="shape.type === 'text' && shape.startPoint && shape.text"
-            :x="shape.startPoint.x"
-            :y="shape.startPoint.y"
-            :fill="shape.color"
-            :font-size="shape.fontSize || 16"
-            :font-family="shape.fontFamily || 'Arial'"
+            v-else-if="shape instanceof TextShape"
+            :x="shape.startPoint.value.x"
+            :y="shape.startPoint.value.y"
+            :fill="shape.color.value"
+            :font-size="shape.fontSize?.value || 16"
+            :font-family="shape.fontFamily?.value || 'Arial'"
           >
             <tspan
-              v-for="(line, index) in shape.text.split('\n')"
+              v-for="(line, index) in shape.text.value.split('\n')"
               :key="index"
-              :x="shape.startPoint.x"
-              :dy="index === 0 ? 0 : (shape.fontSize || 16) * 1.2"
+              :x="shape.startPoint.value.x"
+              :dy="index === 0 ? 0 : (shape.fontSize?.value || 16) * 1.2"
             >
               {{ line }}
             </tspan>
@@ -415,35 +410,31 @@ defineExpose({
 
           <!-- Images -->
           <image
-            v-else-if="
-              shape.type === 'image' && shape.startPoint && shape.imageData
-            "
-            :href="shape.imageData"
-            :x="shape.startPoint.x"
-            :y="shape.startPoint.y"
-            :width="shape.imageWidth || 100"
-            :height="shape.imageHeight || 100"
+            v-else-if="shape instanceof ImageShape"
+            :href="shape.imageData.value"
+            :x="shape.startPoint.value.x"
+            :y="shape.startPoint.value.y"
+            :width="shape.imageWidth?.value || 100"
+            :height="shape.imageHeight?.value || 100"
           />
 
           <!-- Arrows -->
           <g
-            v-else-if="
-              shape.type === 'arrow' && shape.startPoint && shape.endPoint
-            "
+            v-else-if="shape instanceof ArrowShape"
           >
             <line
-              :x1="shape.startPoint.x"
-              :y1="shape.startPoint.y"
-              :x2="shape.endPoint.x"
-              :y2="shape.endPoint.y"
-              :stroke="shape.color"
-              :stroke-width="shape.lineWidth"
+              :x1="shape.startPoint.value.x"
+              :y1="shape.startPoint.value.y"
+              :x2="shape.endPoint.value.x"
+              :y2="shape.endPoint.value.y"
+              :stroke="shape.color.value"
+              :stroke-width="shape.lineWidth.value"
               stroke-linecap="round"
             />
             <!-- Arrow head - computed inline -->
             <polygon
-              :points="getArrowHeadPoints(shape.startPoint, shape.endPoint)"
-              :fill="shape.color"
+              :points="getArrowHeadPoints(shape.startPoint.value, shape.endPoint.value)"
+              :fill="shape.color.value"
             />
           </g>
         </g>

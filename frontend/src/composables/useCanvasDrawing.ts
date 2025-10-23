@@ -1,7 +1,8 @@
-import { ref, type Ref } from "vue";
-import type { Shape, Point } from "@/types";
+import { ref, shallowRef, type Ref } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
-import { generateShapeId, calculateBounds, moveShape, isPointInBounds } from "@/utils/shapeHelpers";
+import { generateShapeId, isPointInBounds } from "@/utils/shapeHelpers";
+import { LineShape, RectangleShape, ArrowShape, DrawShape, TextShape, Shape } from "./shapes";
+import { Point } from "@/types";
 
 export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const store = useDrawingStore();
@@ -13,7 +14,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const lastX = ref(0);
   const lastY = ref(0);
   const currentDrawingPoints = ref<Point[]>([]);
-  const previewShape = ref<Shape | null>(null);
+  const previewShape = shallowRef<Shape | null>(null);
 
   function getSVGCoordinates(event: MouseEvent): Point {
     const svg = svgRef.value;
@@ -39,7 +40,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     const isShiftPressed = event?.shiftKey || false;
 
     // Find shapes that contain the click point
-    const shapesAtPoint = store.shapes.filter(shape => 
+    const shapesAtPoint = store.shapes.filter(shape =>
       isPointInBounds(clickPoint, shape.bounds)
     );
 
@@ -96,24 +97,21 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
 
     // Create preview shape for all drawing tools
     if (["line", "rectangle", "arrow"].includes(store.currentTool)) {
-      previewShape.value = {
-        id: "preview",
-        type: store.currentTool as any,
-        color: store.currentColor,
-        lineWidth: store.lineWidth,
-        startPoint: { x, y },
-        endPoint: { x, y },
-        bounds: { x: 0, y: 0, width: 0, height: 0 },
-      };
+      const startPoint = { x, y }
+      const endPoint = { x, y }
+      switch (store.currentTool) {
+        case 'line':
+          previewShape.value = new LineShape('preview', store.currentColor, store.lineWidth, startPoint, endPoint)
+          break
+        case 'rectangle':
+          previewShape.value = new RectangleShape('preview', store.currentColor, store.lineWidth, startPoint, endPoint)
+          break
+        case 'arrow':
+          previewShape.value = new ArrowShape('preview', store.currentColor, store.lineWidth, startPoint, endPoint)
+          break
+      }
     } else if (store.currentTool === "draw") {
-      previewShape.value = {
-        id: "preview",
-        type: "draw",
-        color: store.currentColor,
-        lineWidth: store.lineWidth,
-        points: [{ x, y }],
-        bounds: { x: 0, y: 0, width: 0, height: 0 },
-      };
+      previewShape.value = new DrawShape('preview', store.currentColor, store.lineWidth, [{ x, y }])
     }
   }
 
@@ -130,7 +128,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       const deltaY = y - startY.value;
 
       store.selectedShapes.forEach((shape) => {
-        moveShape(shape, deltaX, deltaY);
+        shape.move(deltaX, deltaY);
       });
 
       console.log('Dragging shapes by', deltaX, deltaY);
@@ -147,11 +145,10 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
 
     // Update preview shape
     if (previewShape.value) {
-      if (previewShape.value.type === "draw") {
-        currentDrawingPoints.value.push({ x, y });
-        previewShape.value.points = [...currentDrawingPoints.value];
+      if (previewShape.value instanceof DrawShape) {
+        (previewShape.value as DrawShape).points.value.push({ x, y });
       } else {
-        previewShape.value.endPoint = { x, y };
+        (previewShape.value as LineShape | RectangleShape | ArrowShape).endPoint.value = { x, y };
       }
     }
   }
@@ -176,28 +173,28 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     previewShape.value = null;
 
     // Create the final shape
-    const newShape: Shape = {
-      id: generateShapeId(),
-      type: store.currentTool as any,
-      color: store.currentColor,
-      lineWidth: store.lineWidth,
-      bounds: { x: 0, y: 0, width: 0, height: 0 },
-    };
-
-    if (store.currentTool === "draw") {
-      newShape.points = [...currentDrawingPoints.value];
-    } else if (["line", "rectangle", "arrow"].includes(store.currentTool)) {
-      newShape.startPoint = { x: startX.value, y: startY.value };
-      newShape.endPoint = { x: lastX.value, y: lastY.value };
-    }
-
-    newShape.bounds = calculateBounds(newShape);
+    const newShape: Shape = (() => {
+      const id = generateShapeId()
+      const startPoint = { x: startX.value, y: startY.value }
+      const endPoint = { x: lastX.value, y: lastY.value }
+      switch (store.currentTool) {
+        case 'draw':
+          return new DrawShape(id, store.currentColor, store.lineWidth, [...currentDrawingPoints.value])
+        case 'line':
+          return new LineShape(id, store.currentColor, store.lineWidth, startPoint, endPoint)
+        case 'rectangle':
+          return new RectangleShape(id, store.currentColor, store.lineWidth, startPoint, endPoint)
+        case 'arrow':
+          return new ArrowShape(id, store.currentColor, store.lineWidth, startPoint, endPoint)
+        default:
+          throw new Error(`Unknown tool: ${store.currentTool}`)
+      }
+    })()
 
     // Only add shape if it has actual size
     if (
       newShape.bounds.width > 1 ||
-      newShape.bounds.height > 1 ||
-      (newShape.points && newShape.points.length > 1)
+      newShape.bounds.height > 1
     ) {
       store.addShape(newShape);
       store.selectShape(newShape.id);
@@ -213,41 +210,18 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   }
 
   function drawText(x: number, y: number, text: string): Shape {
-    const newShape: Shape = {
-      id: generateShapeId(),
-      type: "text",
-      color: store.currentColor,
-      lineWidth: store.lineWidth,
-      startPoint: { x, y },
+    const newShape = new TextShape(
+      generateShapeId(),
+      store.currentColor,
+      store.lineWidth,
+      { x, y },
       text,
-      fontSize: store.fontSize,
-      fontFamily: store.fontFamily,
-      bounds: { x: 0, y: 0, width: 0, height: 0 },
-    };
-
-    newShape.bounds = calculateBounds(newShape);
+      store.fontSize,
+      store.fontFamily
+    )
     store.addShape(newShape);
     store.selectShape(newShape.id);
     return newShape;
-  }
-
-  function updateShapeProperty(
-    shapeId: string,
-    property: keyof Shape,
-    value: any
-  ) {
-    const shape = store.shapes.find((s) => s.id === shapeId);
-    if (shape) {
-      const updates: Partial<Shape> = { [property]: value };
-      if (
-        property === "startPoint" ||
-        property === "endPoint" ||
-        property === "points"
-      ) {
-        updates.bounds = calculateBounds({ ...shape, ...updates });
-      }
-      store.updateShape(shapeId, updates);
-    }
   }
 
   function clearShapes() {
@@ -263,7 +237,6 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     draw,
     stopDrawing,
     drawText,
-    updateShapeProperty,
     clearShapes,
     deleteSelectedShapes,
     getSVGCoordinates,

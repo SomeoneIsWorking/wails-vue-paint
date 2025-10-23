@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { ToolType, Shape, SelectionMode } from '../types'
+import { ref, computed, shallowRef } from 'vue'
+import type { ToolType, SelectionMode } from '../types'
 import { boundsIntersect, boundsContainsBounds, calculateBoundsOverlapPercentage, serializeShapes } from '../utils/shapeHelpers'
+import { createShapeFromData, Shape } from '../composables/shapes'
 
 // @ts-ignore
 import { SaveState, LoadState } from '../../wailsjs/go/main/App'
@@ -18,7 +19,7 @@ export const useDrawingStore = defineStore('drawing', () => {
   const fontFamily = ref('Arial')
   
   // Shapes and selection
-  const shapes = ref<Shape[]>([])
+  const shapes = shallowRef<Shape[]>([])
   const selectedShapeIds = ref<string[]>([])
   
   // Drawing state
@@ -93,7 +94,7 @@ export const useDrawingStore = defineStore('drawing', () => {
       selectedShapeIds.value.forEach(id => {
         const shape = shapes.value.find(s => s.id === id)
         if (shape) {
-          shape.color = color
+          shape.color.value = color
           hasUpdates = true
         }
       })
@@ -160,7 +161,7 @@ export const useDrawingStore = defineStore('drawing', () => {
     if (selectedShapeIds.value.length === 1) {
       const shape = shapes.value.find(s => s.id === shapeId)
       if (shape) {
-        currentColor.value = shape.color
+        currentColor.value = shape.color.value
       }
     }
   }
@@ -293,7 +294,7 @@ export const useDrawingStore = defineStore('drawing', () => {
       const stateJSON = await LoadState()
       if (stateJSON) {
         const state = JSON.parse(stateJSON)
-        shapes.value = state.shapes || []
+        shapes.value = state.shapes ? state.shapes.map(createShapeFromData) : []
         currentTool.value = state.currentTool || 'select'
         currentColor.value = state.currentColor || '#000000'
         lineWidth.value = state.lineWidth || 2

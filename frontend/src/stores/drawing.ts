@@ -28,13 +28,11 @@ export const useDrawingStore = defineStore("drawing", () => {
 
   // Drawing state
   const isDrawing = ref(false);
-  const isDraggingShapes = ref(false);
+  const isDragMoving = ref(false);
   const isDragSelecting = ref(false);
   const dragSelectStart = ref<{ x: number; y: number } | null>(null);
   const dragSelectEnd = ref<{ x: number; y: number } | null>(null);
 
-  // Point editing state
-  const draggedPointIndex = ref<number | null>(null);
   const selectedPointIndices = ref<number[]>([]);
 
   // Pan and zoom state
@@ -96,7 +94,12 @@ export const useDrawingStore = defineStore("drawing", () => {
 
   // Preview shapes that would be selected during drag selection
   const dragSelectPreviewShapeIds = computed(() => {
-    if (!isDragSelecting.value || !dragSelectBounds.value) return [];
+    if (
+      !isDragSelecting.value ||
+      !dragSelectBounds.value ||
+      currentTool.value === "pointEdit"
+    )
+      return [];
 
     const bounds = dragSelectBounds.value;
     const previewIds: string[] = [];
@@ -108,6 +111,30 @@ export const useDrawingStore = defineStore("drawing", () => {
     }
 
     return previewIds;
+  });
+
+  // Preview point indices that would be selected during drag selection in point edit
+  const dragSelectPreviewPointIndices = computed(() => {
+    if (
+      !isDragSelecting.value ||
+      !dragSelectBounds.value ||
+      currentTool.value !== "pointEdit" ||
+      !pointEditSelectedShape.value
+    )
+      return [];
+
+    const bounds = dragSelectBounds.value;
+    const points = pointEditSelectedShape.value.getDraggablePoints();
+    const previewIndices: number[] = [];
+
+    for (let i = 0; i < points.length; i++) {
+      const point = points[i];
+      if (bounds.containsPoint(point)) {
+        previewIndices.push(i);
+      }
+    }
+
+    return previewIndices;
   });
 
   function isShapeInSelection(shape: Shape, selectionBounds: Bounds): boolean {
@@ -127,7 +154,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         break;
       default:
         clearSelection();
-        draggedPointIndex.value = null;
         break;
     }
   }
@@ -286,43 +312,39 @@ export const useDrawingStore = defineStore("drawing", () => {
   }
 
   function finishDragSelection() {
-    if (isDragSelecting.value && dragSelectBounds.value) {
-      if (currentTool.value === "pointEdit" && pointEditSelectedShape.value) {
-        const bounds = dragSelectBounds.value;
-        const points = pointEditSelectedShape.value.getDraggablePoints();
-        const selected: number[] = [];
-
-        for (let i = 0; i < points.length; i++) {
-          const point = points[i];
-          if (bounds.containsPoint(point)) {
-            selected.push(i);
-          }
-        }
-
-        setSelectedPointIndices(selected);
-      } else {
-        const bounds = dragSelectBounds.value;
-        const selected: string[] = [];
-
-        for (const shape of shapes.value) {
-          if (isShapeInSelection(shape, bounds)) {
-            selected.push(shape.id);
-          }
-        }
-
-        selectMultipleShapes(selected);
-      }
+    if (!isDragSelecting.value || !dragSelectBounds.value) {
+      return;
     }
+    if (currentTool.value === "pointEdit" && pointEditSelectedShape.value) {
+      const bounds = dragSelectBounds.value;
+      const points = pointEditSelectedShape.value.getDraggablePoints();
+      const selected: number[] = [];
 
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        if (bounds.containsPoint(point)) {
+          selected.push(i);
+        }
+      }
+
+      setSelectedPointIndices(selected);
+    } else {
+      const bounds = dragSelectBounds.value;
+      const selected: string[] = [];
+
+      for (const shape of shapes.value) {
+        if (isShapeInSelection(shape, bounds)) {
+          selected.push(shape.id);
+        }
+      }
+
+      selectMultipleShapes(selected);
+    }
     isDragSelecting.value = false;
-    dragSelectStart.value = null;
-    dragSelectEnd.value = null;
   }
 
   function cancelDragSelection() {
     isDragSelecting.value = false;
-    dragSelectStart.value = null;
-    dragSelectEnd.value = null;
   }
 
   function setPanOffset(x: number, y: number) {
@@ -343,12 +365,8 @@ export const useDrawingStore = defineStore("drawing", () => {
 
   function setPointEditSelectedShape(shapeId: string | null) {
     selectedShapeIds.value = shapeId ? [shapeId] : [];
-    draggedPointIndex.value = null;
+    selectedPointIndices.value = [];
     syncCurrentProperties();
-  }
-
-  function setDraggedPointIndex(index: number | null) {
-    draggedPointIndex.value = index;
   }
 
   function setSelectedPointIndices(indices: number[]) {
@@ -414,7 +432,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         selectedShapeIds: selectedShapeIds.value,
         panOffset: panOffset.value,
         zoomLevel: zoomLevel.value,
-        draggedPointIndex: draggedPointIndex.value,
         selectedPointIndices: selectedPointIndices.value,
       };
       await SaveState(JSON.stringify(state));
@@ -443,7 +460,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         selectedShapeIds.value = state.selectedShapeIds || [];
         panOffset.value = state.panOffset || { x: 0, y: 0 };
         zoomLevel.value = state.zoomLevel || 1;
-        draggedPointIndex.value = state.draggedPointIndex || null;
         selectedPointIndices.value = state.selectedPointIndices || [];
       }
     } catch (error) {
@@ -464,14 +480,13 @@ export const useDrawingStore = defineStore("drawing", () => {
     shapes,
     selectedShapeIds,
     isDrawing,
-    isDraggingShapes,
+    isDragMoving,
     isDragSelecting,
     dragSelectStart,
     dragSelectEnd,
     panOffset,
     zoomLevel,
     isPanning,
-    draggedPointIndex,
     selectedPointIndices,
 
     // Computed
@@ -479,6 +494,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     hasSelection,
     dragSelectBounds,
     dragSelectPreviewShapeIds,
+    dragSelectPreviewPointIndices,
     pointEditSelectedShape,
 
     // Actions
@@ -509,7 +525,6 @@ export const useDrawingStore = defineStore("drawing", () => {
     isShapeInSelection,
     loadStateFromBackend,
     setPointEditSelectedShape,
-    setDraggedPointIndex,
     setSelectedPointIndices,
     fitView,
     saveStateToBackend,

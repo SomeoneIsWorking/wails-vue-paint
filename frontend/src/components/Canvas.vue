@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
 import { useCanvasDrawing } from "@/composables/useCanvasDrawing";
+import { useMouseInteraction } from "@/composables/useMouseInteraction";
 import type { Point } from "@/types";
 import { generateSmoothPath, findClosestSegment } from "@/utils/shapeHelpers";
 
@@ -15,14 +16,15 @@ const textInputSVGPosition = ref({ x: 0, y: 0 } as Point); // SVG position for d
 const textInputValue = ref("");
 const textInputRef = ref<HTMLTextAreaElement | null>(null);
 const panStartPoint = ref<Point | null>(null);
+const start = ref<Point | null>(null);
 
 const {
-  onPointerDown,
   draw,
   stopDrawing,
   drawText,
   getBaseSVGCoordinates,
   previewShape,
+  startDrawing,
 } = useCanvasDrawing(svgRef);
 
 // Computed bounds for rendering
@@ -60,61 +62,221 @@ const getSVGCoordinates = (event: MouseEvent) => {
   return { x: adjustedX, y: adjustedY };
 };
 
-const handlePointEditMouseDown = (coords: Point, event: MouseEvent) => {
-  const selectedShape = store.pointEditSelectedShape;
-  if (selectedShape) {
-    // Check if clicking on a draggable point of the selected shape
-    const points = selectedShape.getDraggablePoints();
-    let clickedPointIndex = -1;
-    for (let i = 0; i < points.length; i++) {
-      const point = points[i];
-      const distance = Math.sqrt(
-        (coords.x - point.x) ** 2 + (coords.y - point.y) ** 2
-      );
-      if (distance <= 10 / store.zoomLevel) {
-        // 10px hit radius, adjusted for zoom
-        clickedPointIndex = i;
-        break;
-      }
+const findClickedPointIndex = (coords: Point): number => {
+  if (!store.pointEditSelectedShape) {
+    return -1;
+  }
+  const points = store.pointEditSelectedShape.getDraggablePoints();
+  for (let i = 0; i < points.length; i++) {
+    const point = points[i];
+    const dx = point.x - coords.x;
+    const dy = point.y - coords.y;
+    const distanceSquared = dx * dx + dy * dy;
+    if (distanceSquared <= 25) {
+      // Within radius of 5
+      return i;
     }
+  }
+  return -1;
+};
 
-    if (clickedPointIndex !== -1) {
-      if (event.shiftKey) {
-        // Toggle selection
-        const index = store.selectedPointIndices.indexOf(clickedPointIndex);
-        if (index !== -1) {
-          store.selectedPointIndices.splice(index, 1);
-        } else {
-          store.selectedPointIndices.push(clickedPointIndex);
-        }
-      } else {
-        store.setSelectedPointIndices([clickedPointIndex]);
-      }
-      store.setDraggedPointIndex(clickedPointIndex);
-    } else {
-      // Start drag selection for points
-      store.startDragSelection(coords.x, coords.y);
-    }
-  } else {
-    // Not on a shape, find shape at position
-    const clickedShape = store.shapes.find((shape) =>
+const onPointEditClick = (coords: Point, event: MouseEvent) => {
+  const modifySelection = event.metaKey || event.ctrlKey;
+
+  if (!store.pointEditSelectedShape) {
+    const shapesAtPoint = store.shapes.find((shape) =>
       shape.bounds.containsPoint(coords)
     );
+    if (shapesAtPoint) {
+      store.setPointEditSelectedShape(shapesAtPoint.id);
+    }
+    return;
+  }
 
-    if (clickedShape) {
-      store.setPointEditSelectedShape(clickedShape.id);
+  const clickedPointIndex = findClickedPointIndex(coords);
+  if (modifySelection) {
+    const index = store.selectedPointIndices.indexOf(clickedPointIndex);
+    if (index !== -1) {
+      store.selectedPointIndices.splice(index, 1);
+    } else {
+      store.selectedPointIndices.push(clickedPointIndex);
+    }
+    return;
+  }
+
+  if (clickedPointIndex === -1) {
+    const insideSelectedShape = store.shapes.find(
+      (shape) =>
+        shape.bounds.containsPoint(coords) &&
+        shape.id === store.pointEditSelectedShape?.id
+    );
+    if (insideSelectedShape) {
+      store.setSelectedPointIndices([]);
     } else {
       store.setPointEditSelectedShape(null);
+    }
+  } else {
+    store.setSelectedPointIndices([clickedPointIndex]);
+  }
+};
+
+const onSelectClick = (coords: Point, event: MouseEvent) => {
+  const modifySelection = event.metaKey || event.ctrlKey;
+  const shapesAtPoint = store.shapes.filter((shape) =>
+    shape.bounds.containsPoint(coords)
+  );
+
+  if (shapesAtPoint.length > 0) {
+    const topShape = shapesAtPoint[shapesAtPoint.length - 1];
+
+    if (modifySelection) {
+      if (store.selectedShapeIds.includes(topShape.id)) {
+        store.toggleShapeSelection(topShape.id);
+      } else {
+        store.selectShape(topShape.id, true);
+      }
+    } else {
+      store.selectShape(topShape.id);
+    }
+  } else {
+    if (!modifySelection) {
+      store.clearSelection();
     }
   }
 };
 
-const handlePointDragging = (coords: Point) => {
-  if (store.pointEditSelectedShape && store.draggedPointIndex !== null) {
-    store.pointEditSelectedShape.updateDraggablePoint(
-      store.draggedPointIndex,
-      coords
+const onSelectDragStart = (coords: Point) => {
+  const shapesAtPoint = store.shapes.filter((shape) =>
+    shape.bounds.containsPoint(coords)
+  );
+
+  if (store.selectedShapeIds.length === 0 && shapesAtPoint.length > 0) {
+    store.selectedShapeIds.push(shapesAtPoint[0].id);
+    store.isDragMoving = true;
+    start.value = { ...coords };
+    return;
+  }
+  if (shapesAtPoint.length > 0) {
+    const clickedOnSelectedShape = shapesAtPoint.some((shape) =>
+      store.selectedShapeIds.includes(shape.id)
     );
+
+    if (clickedOnSelectedShape) {
+      // Start dragging shapes
+      store.isDragMoving = true;
+      start.value = { ...coords };
+      return;
+    }
+  }
+
+  store.startDragSelection(coords.x, coords.y);
+};
+
+const onPointEditDragStart = (coords: Point) => {
+  const selectedShape = store.pointEditSelectedShape;
+  if (!selectedShape) {
+    return;
+  }
+  const clickedPointIndex = findClickedPointIndex(coords);
+
+  if (clickedPointIndex === -1) {
+    store.startDragSelection(coords.x, coords.y);
+    return;
+  }
+  if (!store.selectedPointIndices.includes(clickedPointIndex)) {
+    store.setSelectedPointIndices([clickedPointIndex]);
+  }
+  start.value = { ...coords };
+  store.isDragMoving = true;
+};
+
+const onClick = (coords: Point, event: MouseEvent) => {
+  if (store.currentTool === "pointEdit") {
+    onPointEditClick(coords, event);
+  } else if (store.currentTool === "select") {
+    onSelectClick(coords, event);
+  } else if (store.currentTool === "text") {
+    // Show text input at click position
+    textInputPosition.value = { x: event.clientX, y: event.clientY };
+    textInputSVGPosition.value = { x: coords.x, y: coords.y };
+    textInputValue.value = "";
+    textInputVisible.value = true;
+    // Focus input after render
+    setTimeout(() => {
+      textInputRef.value?.focus();
+    }, 0);
+  }
+  // For drawing tools, do nothing on click
+};
+
+const onDragStart = (coords: Point) => {
+  if (store.currentTool === "pointEdit") {
+    onPointEditDragStart(coords);
+  } else if (store.currentTool === "select") {
+    onSelectDragStart(coords);
+  } else {
+    // Start drawing
+    startDrawing(coords.x, coords.y);
+  }
+};
+
+const onDragUpdate = (coords: Point) => {
+  if (store.isDragMoving) {
+    if (store.currentTool === "select") {
+      onShapeMove(coords);
+    }
+    if (store.currentTool === "pointEdit") {
+      onPointEditMove(coords);
+    }
+    start.value = { ...coords };
+
+    return;
+  }
+  if (store.isDragSelecting) {
+    store.updateDragSelection(coords.x, coords.y);
+  } else if (isCurrentlyDrawing.value) {
+    draw(coords.x, coords.y);
+  }
+};
+
+const onShapeMove = (coords: Point) => {
+  const deltaX = coords.x - start.value!.x;
+  const deltaY = coords.y - start.value!.y;
+  store.selectedShapes.forEach((shape) => {
+    shape.move(deltaX, deltaY);
+  });
+};
+
+const onDragEnd = (_coords: Point) => {
+  if (store.isDragSelecting) {
+    store.finishDragSelection();
+  } else if (store.isDragMoving) {
+    store.isDragMoving = false;
+  } else if (isCurrentlyDrawing.value) {
+    stopDrawing();
+    isCurrentlyDrawing.value = false;
+  }
+};
+
+const mouseInteraction = useMouseInteraction({
+  onClick,
+  onDragStart,
+  onDragUpdate,
+  onDragEnd,
+  getSVGCoordinates,
+});
+
+const onPointEditMove = (coords: Point) => {
+  const deltaX = coords.x - start.value!.x;
+  const deltaY = coords.y - start.value!.y;
+  if (store.pointEditSelectedShape && store.selectedPointIndices.length > 0) {
+    const draggablePoints = store.pointEditSelectedShape.getDraggablePoints();
+    for (const index of store.selectedPointIndices) {
+      store.pointEditSelectedShape.updateDraggablePoint(index, {
+        x: draggablePoints[index].x + deltaX,
+        y: draggablePoints[index].y + deltaY,
+      });
+    }
   }
 };
 
@@ -132,27 +294,7 @@ const handleMouseDown = (event: MouseEvent) => {
     return;
   }
 
-  const coords = getSVGCoordinates(event);
-
-  if (store.currentTool === "pointEdit") {
-    handlePointEditMouseDown(coords, event);
-    return;
-  }
-
-  if (store.currentTool === "text") {
-    // Show text input at click position
-    textInputPosition.value = { x: event.clientX, y: event.clientY };
-    textInputSVGPosition.value = { x: coords.x, y: coords.y };
-    textInputValue.value = "";
-    textInputVisible.value = true;
-    // Focus input after render
-    setTimeout(() => {
-      textInputRef.value?.focus();
-    }, 0);
-  } else {
-    isCurrentlyDrawing.value = true;
-    onPointerDown(coords.x, coords.y, event);
-  }
+  mouseInteraction.handleMouseDown(event);
 };
 
 const handleMouseMove = (event: MouseEvent) => {
@@ -169,28 +311,10 @@ const handleMouseMove = (event: MouseEvent) => {
     return;
   }
 
-  if (
-    store.currentTool === "pointEdit" &&
-    store.draggedPointIndex !== null &&
-    store.pointEditSelectedShape
-  ) {
-    const coords = getSVGCoordinates(event);
-    handlePointDragging(coords);
-    return;
-  }
-
-  if (
-    !isCurrentlyDrawing.value &&
-    !store.isDraggingShapes &&
-    !store.isDragSelecting
-  ) {
-    return;
-  }
-  const coords = getSVGCoordinates(event);
-  draw(coords.x, coords.y);
+  mouseInteraction.handleMouseMove(event);
 };
 
-const handleMouseUp = () => {
+const handleMouseUp = (event: MouseEvent) => {
   // Stop panning
   if (store.isPanning) {
     store.stopPanning();
@@ -198,21 +322,7 @@ const handleMouseUp = () => {
     return;
   }
 
-  // Stop dragging point
-  if (store.draggedPointIndex !== null) {
-    store.setDraggedPointIndex(null);
-    store.saveStateToBackend();
-    return;
-  }
-
-  if (
-    isCurrentlyDrawing.value ||
-    store.isDraggingShapes ||
-    store.isDragSelecting
-  ) {
-    stopDrawing();
-    isCurrentlyDrawing.value = false;
-  }
+  mouseInteraction.handleMouseUp(event);
 };
 
 const handleMouseLeave = () => {
@@ -222,14 +332,7 @@ const handleMouseLeave = () => {
     panStartPoint.value = null;
   }
 
-  if (
-    isCurrentlyDrawing.value ||
-    store.isDraggingShapes ||
-    store.isDragSelecting
-  ) {
-    stopDrawing();
-    isCurrentlyDrawing.value = false;
-  }
+  mouseInteraction.handleMouseLeave();
 };
 
 const handleDoubleClick = (event: MouseEvent) => {
@@ -504,7 +607,11 @@ onMounted(async () => {
             :cy="point.y"
             r="5"
             :fill="
-              store.selectedPointIndices.includes(index) ? '#FF0000' : '#3B82F6'
+              store.selectedPointIndices.includes(index)
+                ? '#FF0000'
+                : store.dragSelectPreviewPointIndices.includes(index)
+                ? '#FF8800'
+                : '#3B82F6'
             "
             stroke="#FFFFFF"
             stroke-width="2"

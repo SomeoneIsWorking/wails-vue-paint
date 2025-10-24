@@ -276,5 +276,6 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     drawText,
     getBaseSVGCoordinates,
     previewShape,
+    startDrawing,
   };
 }

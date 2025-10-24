@@ -8,6 +8,7 @@ export interface ImageShapeData {
   id: string;
   color: string;
   startPoint: PointData;
+  endPoint: PointData;
   imageData: string;
   imageWidth: number;
   imageHeight: number;

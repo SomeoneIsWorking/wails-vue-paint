@@ -16,7 +16,11 @@ export class Point {
   offset(delta: Vector) {
     return new Point(this.x + delta.x, this.y + delta.y);
   }
+
   scale(scale: number) {
     return new Point(this.x * scale, this.y * scale);
+  }
+  asVector() {
+    return new Vector(this.x, this.y);
   }
 }

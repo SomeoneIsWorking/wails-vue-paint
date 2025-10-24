@@ -1,5 +1,6 @@
 import { drop } from "lodash-es";
 import { Point } from "./Point";
+import { Vector } from "./Vector";
 
 export class Bounds {
   extend(amount: number): Bounds {
@@ -34,6 +35,10 @@ export class Bounds {
 
   get bottomRight(): Point {
     return new Point(this.right, this.bottom);
+  }
+
+  get size(): Vector {
+    return new Vector(this.width, this.height);
   }
 
   constructor(points: Point[]) {

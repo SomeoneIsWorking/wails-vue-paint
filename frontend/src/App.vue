@@ -18,27 +18,20 @@ const isMac = ref(false);
 
 const handlePaste = async () => {
   console.log("[handlePaste] Paste function called");
-  try {
-    console.log("[handlePaste] Calling GetClipboardImage...");
-    const imageData = await GetClipboardImage();
-    console.log(
-      `[handlePaste] Got response, imageData length: ${imageData?.length || 0}`
-    );
-
-    if (imageData) {
-      console.log("[handlePaste] Loading image to canvas...");
-      const shape = await createImageShape(imageData);
-      store.addShape(shape);
-      console.log("[handlePaste] Image loaded successfully!");
-    } else if (!imageData) {
-      console.log("[handlePaste] ERROR: No image data returned from clipboard");
-      alert("No image data returned from clipboard");
-    }
-  } catch (error) {
-    console.log(`[handlePaste] ERROR: ${error}`);
-    console.error("Failed to get clipboard image:", error);
-    alert("No image in clipboard or failed to read clipboard: " + error);
+  console.log("[handlePaste] Calling GetClipboardImage...");
+  const imageData = await GetClipboardImage();
+  console.log(
+    `[handlePaste] Got response, imageData length: ${imageData?.length || 0}`
+  );
+  if (!imageData) {
+    console.log("[handlePaste] No image data found in clipboard.");
+    return;
   }
+
+  console.log("[handlePaste] Loading image to canvas...");
+  const shape = await createImageShape(imageData);
+  store.addShape(shape);
+  console.log("[handlePaste] Image loaded successfully!");
 };
 
 const handleClear = () => {
@@ -54,9 +47,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
       pointEditSelectedShape?.type === "draw"
     ) {
       event.preventDefault();
-      for (let index of store.selectedPointIndices) {
-        pointEditSelectedShape.removeDraggablePoint(index);
-      }
+      pointEditSelectedShape.removeDraggablePoints(store.selectedPointIndices);
       store.setSelectedPointIndices([]);
       store.saveStateToBackend();
     } else if (store.hasSelection) {

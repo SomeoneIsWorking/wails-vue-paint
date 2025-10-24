@@ -62,6 +62,7 @@ export function createShapeFromData(data: ShapeData): ShapeClass<any> {
         data.id,
         data.color,
         toPoint(data.startPoint),
+        toPoint(data.endPoint),
         data.imageData,
         data.imageWidth,
         data.imageHeight

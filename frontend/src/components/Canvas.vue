@@ -18,15 +18,8 @@ const textInputRef = ref<HTMLTextAreaElement | null>(null);
 const panStartPoint = ref<Point | null>(null);
 const start = ref<Point | null>(null);
 
-const {
-  draw,
-  stopDrawing,
-  drawText,
-  getBaseSVGCoordinates,
-  previewShape,
-  startDrawing,
-  isDrawing,
-} = useCanvasDrawing(svgRef);
+const { draw, stopDrawing, drawText, previewShape, startDrawing, isDrawing } =
+  useCanvasDrawing();
 
 // Computed bounds for rendering
 const selectionBounds = computed(() => {
@@ -55,8 +48,15 @@ const allShapes = computed(() => {
 });
 
 // Adjusted SVG coordinates accounting for pan and zoom
-const getSVGCoordinates = (event: MouseEvent) => {
-  const coords = getBaseSVGCoordinates(event);
+const getSVGCoordinates = (event: { clientX: number; clientY: number }) => {
+  const svg = svgRef.value;
+  if (!svg) return new Point(0, 0);
+
+  const pt = svg.createSVGPoint();
+  pt.x = event.clientX;
+  pt.y = event.clientY;
+  const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+  const coords = new Point(svgP.x, svgP.y);
   // Apply inverse transform
   return coords.offset(store.panOffset.scale(-1)).scale(1 / store.zoomLevel);
 };
@@ -78,8 +78,6 @@ const findClickedPointIndex = (coords: Point): number => {
 };
 
 const onPointEditClick = (coords: Point, event: MouseEvent) => {
-  const modifySelection = event.metaKey || event.ctrlKey;
-
   if (!store.pointEditSelectedShape) {
     const shapesAtPoint = store.shapes.find((shape) =>
       shape.bounds.containsPoint(coords)
@@ -90,6 +88,9 @@ const onPointEditClick = (coords: Point, event: MouseEvent) => {
     return;
   }
 
+  const modifySelection =
+    (event.metaKey || event.ctrlKey) &&
+    store.pointEditSelectedShape.type === "draw";
   const clickedPointIndex = findClickedPointIndex(coords);
   if (modifySelection) {
     const index = store.selectedPointIndices.indexOf(clickedPointIndex);
@@ -171,8 +172,11 @@ const onPointEditDragStart = (coords: Point) => {
   }
   const clickedPointIndex = findClickedPointIndex(coords);
 
-  if (clickedPointIndex === -1) {
+  if (clickedPointIndex === -1 && selectedShape.type === "draw") {
     store.startDragSelection(coords);
+    return;
+  }
+  if (clickedPointIndex === -1) {
     return;
   }
   if (!store.selectedPointIndices.includes(clickedPointIndex)) {
@@ -258,7 +262,10 @@ const mouseInteraction = useMouseInteraction({
 
 const onPointEditMove = (coords: Point) => {
   const delta = coords.minus(start.value!);
-  if (store.pointEditSelectedShape && store.selectedPointIndices.length > 0) {
+  if (!store.pointEditSelectedShape || !store.selectedPointIndices.length) {
+    return;
+  }
+  if (store.pointEditSelectedShape.type === "draw") {
     const draggablePoints = store.pointEditSelectedShape.getDraggablePoints();
     for (const index of store.selectedPointIndices) {
       store.pointEditSelectedShape.updateDraggablePoint(
@@ -266,6 +273,11 @@ const onPointEditMove = (coords: Point) => {
         draggablePoints[index].offset(delta)
       );
     }
+  } else {
+    store.pointEditSelectedShape.updateDraggablePoint(
+      store.selectedPointIndices[0],
+      coords
+    );
   }
 };
 
@@ -346,8 +358,14 @@ const handleDoubleClick = (event: MouseEvent) => {
 const handleWheel = (event: WheelEvent) => {
   event.preventDefault();
 
+  const focus = getSVGCoordinates(event);
   const delta = -event.deltaY * 0.001;
   const newZoom = store.zoomLevel + delta;
+
+  // Adjust pan to zoom towards the mouse position
+  const zoomDelta = store.zoomLevel - newZoom;
+  const newPan = store.panOffset.add(focus.asVector().scale(zoomDelta));
+  store.setPanOffset(newPan);
   store.setZoomLevel(newZoom);
 };
 
@@ -493,10 +511,10 @@ onMounted(async () => {
           <image
             v-else-if="shape.type === 'image'"
             :href="shape.imageData.value"
-            :x="shape.startPoint.value.x"
-            :y="shape.startPoint.value.y"
-            :width="shape.imageWidth?.value || 100"
-            :height="shape.imageHeight?.value || 100"
+            :x="shape.bounds.left"
+            :y="shape.bounds.top"
+            :width="shape.bounds.width"
+            :height="shape.bounds.height"
           />
 
           <!-- Arrows -->

@@ -1,4 +1,4 @@
-import { ref, shallowRef, type Ref } from "vue";
+import { ref, shallowRef } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
 import {
   LineShape,
@@ -11,24 +11,13 @@ import {
 import { generateShapeId, simplifyPoints } from "@/utils/shapeHelpers";
 import { Point } from "@/utils/Point";
 
-export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
+export function useCanvasDrawing() {
   const store = useDrawingStore();
 
   const isDrawing = ref(false);
   const start = ref<Point | null>(null);
   const last = ref<Point | null>(null);
   const previewShape = shallowRef<Shape | null>(null);
-
-  function getBaseSVGCoordinates(event: MouseEvent): Point {
-    const svg = svgRef.value;
-    if (!svg) return new Point(0, 0);
-
-    const pt = svg.createSVGPoint();
-    pt.x = event.clientX;
-    pt.y = event.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
-    return new Point(svgP.x, svgP.y);
-  }
 
   function startDrawing(point: Point) {
     // Clear selection when starting new drawing
@@ -165,7 +154,6 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     draw,
     stopDrawing,
     drawText,
-    getBaseSVGCoordinates,
     previewShape,
     startDrawing,
   };

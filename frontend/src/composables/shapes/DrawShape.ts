@@ -38,10 +38,8 @@ export class DrawShape extends ShapeClass<DrawShapeData> {
     }
   }
 
-  removeDraggablePoint(index: number): void {
-    if (index >= 0 && index < this.points.value.length) {
-      this.points.value.splice(index, 1);
-    }
+  removeDraggablePoints(indices: number[]): void {
+    this.points.value = this.points.value.filter((_, i) => !indices.includes(i));
   }
 
   protected getSerializableProperties() {

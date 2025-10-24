@@ -25,6 +25,7 @@ const {
   getBaseSVGCoordinates,
   previewShape,
   startDrawing,
+  isDrawing,
 } = useCanvasDrawing(svgRef);
 
 // Computed bounds for rendering
@@ -126,11 +127,7 @@ const onSelectClick = (coords: Point, event: MouseEvent) => {
     const topShape = shapesAtPoint[shapesAtPoint.length - 1];
 
     if (modifySelection) {
-      if (store.selectedShapeIds.includes(topShape.id)) {
-        store.toggleShapeSelection(topShape.id);
-      } else {
-        store.selectShape(topShape.id, true);
-      }
+      store.toggleShapeSelection(topShape.id);
     } else {
       store.selectShape(topShape.id);
     }
@@ -146,26 +143,25 @@ const onSelectDragStart = (coords: Point) => {
     shape.bounds.containsPoint(coords)
   );
 
-  if (store.selectedShapeIds.length === 0 && shapesAtPoint.length > 0) {
-    store.selectedShapeIds.push(shapesAtPoint[0].id);
-    store.isDragMoving = true;
-    start.value = coords;
+  if (!shapesAtPoint.length) {
+    store.startDragSelection(coords);
     return;
   }
-  if (shapesAtPoint.length > 0) {
-    const clickedOnSelectedShape = shapesAtPoint.some((shape) =>
-      store.selectedShapeIds.includes(shape.id)
-    );
+  start.value = coords;
+  store.isDragMoving = true;
 
-    if (clickedOnSelectedShape) {
-      // Start dragging shapes
-      store.isDragMoving = true;
-      start.value = coords;
-      return;
-    }
+  if (!store.selectedShapeIds.length) {
+    store.selectedShapeIds = [shapesAtPoint[0].id];
+    return;
   }
 
-  store.startDragSelection(coords);
+  const clickedOnSelectedShape = shapesAtPoint.some((shape) =>
+    store.selectedShapeIds.includes(shape.id)
+  );
+
+  if (!clickedOnSelectedShape) {
+    store.selectedShapeIds = [shapesAtPoint[0].id];
+  }
 };
 
 const onPointEditDragStart = (coords: Point) => {
@@ -230,7 +226,7 @@ const onDragUpdate = (coords: Point) => {
   }
   if (store.isDragSelecting) {
     store.updateDragSelection(coords);
-  } else if (isCurrentlyDrawing.value) {
+  } else if (isDrawing.value) {
     draw(coords);
   }
 };
@@ -247,9 +243,8 @@ const onDragEnd = (_coords: Point) => {
     store.finishDragSelection();
   } else if (store.isDragMoving) {
     store.isDragMoving = false;
-  } else if (isCurrentlyDrawing.value) {
+  } else if (isDrawing.value) {
     stopDrawing();
-    isCurrentlyDrawing.value = false;
   }
 };
 
@@ -273,8 +268,6 @@ const onPointEditMove = (coords: Point) => {
     }
   }
 };
-
-const isCurrentlyDrawing = ref(false);
 
 const handleMouseDown = (event: MouseEvent) => {
   if (textInputVisible.value) {

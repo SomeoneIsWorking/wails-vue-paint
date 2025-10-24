@@ -8,17 +8,13 @@ import {
   TextShape,
   Shape,
 } from "./shapes";
-import {
-  generateShapeId,
-  simplifyPoints,
-} from "@/utils/shapeHelpers";
+import { generateShapeId, simplifyPoints } from "@/utils/shapeHelpers";
 import { Point } from "@/utils/Point";
 
 export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const store = useDrawingStore();
 
   const isDrawing = ref(false);
-  const isDraggingShapes = ref(false);
   const start = ref<Point | null>(null);
   const last = ref<Point | null>(null);
   const previewShape = shallowRef<Shape | null>(null);
@@ -32,61 +28,6 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     pt.y = event.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
     return new Point(svgP.x, svgP.y);
-  }
-
-  function onPointerDown(point: Point, event?: MouseEvent) {
-    if (store.currentTool === "select") {
-      handleSelectTool(point, event);
-    } else {
-      startDrawing(point);
-    }
-  }
-
-  function handleSelectTool(point: Point, event?: MouseEvent) {
-    const clickPoint = point;
-    const isShiftPressed = event?.shiftKey || false;
-
-    // Find shapes that contain the click point
-    const shapesAtPoint = store.shapes.filter((shape) =>
-      shape.bounds.containsPoint(clickPoint)
-    );
-
-    if (shapesAtPoint.length > 0) {
-      // Clicked on one or more shapes
-      const topShape = shapesAtPoint[shapesAtPoint.length - 1]; // Last drawn shape (topmost)
-
-      if (isShiftPressed) {
-        // Toggle selection
-        if (store.selectedShapeIds.includes(topShape.id)) {
-          store.toggleShapeSelection(topShape.id);
-        } else {
-          store.selectShape(topShape.id, true); // Add to selection
-        }
-      } else {
-        // Single selection
-        if (!store.selectedShapeIds.includes(topShape.id)) {
-          store.selectShape(topShape.id);
-        }
-      }
-
-      // If there are selected shapes and we clicked within their bounds, start dragging
-      const clickedOnSelectedShape = shapesAtPoint.some((shape) =>
-        store.selectedShapeIds.includes(shape.id)
-      );
-
-      if (clickedOnSelectedShape) {
-        isDraggingShapes.value = true;
-        start.value = point;
-      }
-      return;
-    } else {
-      // Clicked on empty space - start drag selection
-      if (!isShiftPressed) {
-        store.clearSelection();
-      }
-      store.startDragSelection(point);
-      return;
-    }
   }
 
   function startDrawing(point: Point) {
@@ -137,28 +78,6 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   }
 
   function draw(point: Point) {
-    // Handle drag selection
-    if (store.isDragSelecting) {
-      store.updateDragSelection(point);
-      return;
-    }
-
-    // Handle shape dragging
-    if (isDraggingShapes.value && store.selectedShapeIds.length > 0) {
-      const delta = point.minus(start.value!);
-
-      store.selectedShapes.forEach((shape) => {
-        shape.move(delta);
-      });
-
-      start.value = point;
-      return;
-    }
-
-    if (!isDrawing.value) {
-      return;
-    }
-
     last.value = point;
 
     // Update preview shape
@@ -175,21 +94,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     }
   }
 
-  function stopDrawing(): Shape | null {
-    // Finish drag selection
-    if (store.isDragSelecting) {
-      store.finishDragSelection();
-      return null;
-    }
-
-    // Finish shape dragging
-    if (isDraggingShapes.value) {
-      isDraggingShapes.value = false;
-      return null;
-    }
-
-    if (!isDrawing.value) return null;
-
+  function stopDrawing() {
     // Create the final shape
     const newShape: Shape = (() => {
       const id = generateShapeId();
@@ -236,13 +141,9 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     if (newShape.bounds.width > 5 || newShape.bounds.height > 5) {
       store.addShape(newShape);
       store.selectShape(newShape.id);
-
-      isDrawing.value = false;
-      return newShape;
     }
 
     isDrawing.value = false;
-    return null;
   }
 
   function drawText(point: Point, text: string): Shape {
@@ -260,7 +161,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   }
 
   return {
-    onPointerDown,
+    isDrawing,
     draw,
     stopDrawing,
     drawText,

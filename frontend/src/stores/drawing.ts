@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, shallowRef } from "vue";
-import type { ToolType, SelectionMode } from "../types";
+import type { ToolType } from "../types";
 import { serializeShapes } from "../utils/shapeHelpers";
 import { Bounds } from "../utils/Bounds";
 
@@ -14,7 +14,6 @@ import { Vector } from "@/utils/Vector";
 export const useDrawingStore = defineStore("drawing", () => {
   // Tool state
   const currentTool = ref<ToolType>("select");
-  const selectionMode = ref<SelectionMode>("half");
   const selectionTolerance = ref<number>(50);
 
   // Drawing properties
@@ -29,7 +28,6 @@ export const useDrawingStore = defineStore("drawing", () => {
   const selectedShapeIds = ref<string[]>([]);
 
   // Drawing state
-  const isDrawing = ref(false);
   const isDragMoving = ref(false);
   const isDragSelecting = ref(false);
   const dragSelectStart = ref<Point | null>(null);
@@ -160,10 +158,6 @@ export const useDrawingStore = defineStore("drawing", () => {
     }
   }
 
-  function setSelectionMode(mode: SelectionMode) {
-    selectionMode.value = mode;
-  }
-
   function setSelectionTolerance(tolerance: number) {
     selectionTolerance.value = tolerance;
   }
@@ -236,14 +230,8 @@ export const useDrawingStore = defineStore("drawing", () => {
     saveStateToBackend();
   }
 
-  function selectShape(shapeId: string, addToSelection = false) {
-    if (addToSelection) {
-      if (!selectedShapeIds.value.includes(shapeId)) {
-        selectedShapeIds.value.push(shapeId);
-      }
-    } else {
-      selectedShapeIds.value = [shapeId];
-    }
+  function selectShape(shapeId: string) {
+    selectedShapeIds.value = [shapeId];
 
     // Auto-switch to select tool when selection becomes non-empty
     if (
@@ -428,7 +416,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         fontSize: fontSize.value,
         fontFamily: fontFamily.value,
         smoothing: smoothing.value,
-        selectionMode: selectionMode.value,
         selectionTolerance: selectionTolerance.value,
         selectedShapeIds: selectedShapeIds.value,
         panOffset: panOffset.value,
@@ -456,7 +443,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         fontSize.value = state.fontSize || 16;
         fontFamily.value = state.fontFamily || "Arial";
         smoothing.value = state.smoothing || 2;
-        selectionMode.value = state.selectionMode || "half";
         selectionTolerance.value = state.selectionTolerance ?? 50;
         selectedShapeIds.value = state.selectedShapeIds || [];
         panOffset.value = state.panOffset || { x: 0, y: 0 };
@@ -471,7 +457,6 @@ export const useDrawingStore = defineStore("drawing", () => {
   return {
     // State
     currentTool,
-    selectionMode,
     selectionTolerance,
     currentColor,
     lineWidth,
@@ -480,7 +465,6 @@ export const useDrawingStore = defineStore("drawing", () => {
     smoothing,
     shapes,
     selectedShapeIds,
-    isDrawing,
     isDragMoving,
     isDragSelecting,
     dragSelectStart,
@@ -500,7 +484,6 @@ export const useDrawingStore = defineStore("drawing", () => {
 
     // Actions
     setTool,
-    setSelectionMode,
     setSelectionTolerance,
     setColor,
     setLineWidth,

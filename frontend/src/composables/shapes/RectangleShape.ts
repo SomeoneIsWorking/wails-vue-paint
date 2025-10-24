@@ -39,71 +39,34 @@ export class RectangleShape extends ShapeClass<RectangleShapeData> {
   }
 
   getDraggablePoints(): Point[] {
-    const bounds = this.drawBounds.value;
     return [
-      bounds.topLeft,
-      bounds.topRight,
-      bounds.bottomRight,
-      bounds.bottomLeft,
+      this.startPoint.value,
+      { x: this.startPoint.value.x, y: this.endPoint.value.y },
+      this.endPoint.value,
+      { x: this.endPoint.value.x, y: this.startPoint.value.y },
     ];
   }
 
   updateDraggablePoint(index: number, newPoint: Point): void {
-    const currentMinX = Math.min(
-      this.startPoint.value.x,
-      this.endPoint.value.x
-    );
-    const currentMaxX = Math.max(
-      this.startPoint.value.x,
-      this.endPoint.value.x
-    );
-    const currentMinY = Math.min(
-      this.startPoint.value.y,
-      this.endPoint.value.y
-    );
-    const currentMaxY = Math.max(
-      this.startPoint.value.y,
-      this.endPoint.value.y
-    );
-
-    let newMinX = currentMinX;
-    let newMaxX = currentMaxX;
-    let newMinY = currentMinY;
-    let newMaxY = currentMaxY;
-
-    if (index === 0) {
-      // top-left
-      newMinX = newPoint.x;
-      newMinY = newPoint.y;
-    } else if (index === 1) {
-      // top-right
-      newMaxX = newPoint.x;
-      newMinY = newPoint.y;
-    } else if (index === 2) {
-      // bottom-right
-      newMaxX = newPoint.x;
-      newMaxY = newPoint.y;
-    } else if (index === 3) {
-      // bottom-left
-      newMinX = newPoint.x;
-      newMaxY = newPoint.y;
-    }
-
-    // Update startPoint and endPoint to reflect new bounds
-    // Keep the original orientation if possible
-    if (this.startPoint.value.x <= this.endPoint.value.x) {
-      this.startPoint.value.x = newMinX;
-      this.endPoint.value.x = newMaxX;
-    } else {
-      this.startPoint.value.x = newMaxX;
-      this.endPoint.value.x = newMinX;
-    }
-    if (this.startPoint.value.y <= this.endPoint.value.y) {
-      this.startPoint.value.y = newMinY;
-      this.endPoint.value.y = newMaxY;
-    } else {
-      this.startPoint.value.y = newMaxY;
-      this.endPoint.value.y = newMinY;
+    switch (index) {
+      case 0:
+        // Start
+        this.startPoint.value = newPoint;
+        break;
+      case 1:
+        // Start X, End Y
+        this.startPoint.value.x = newPoint.x;
+        this.endPoint.value.y = newPoint.y;
+        break;
+      case 2:
+        // End
+        this.endPoint.value = newPoint;
+        break;
+      case 3:
+        // End X, Start Y
+        this.endPoint.value.x = newPoint.x;
+        this.startPoint.value.y = newPoint.y;
+        break;
     }
   }
 

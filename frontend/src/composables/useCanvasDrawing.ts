@@ -8,44 +8,42 @@ import {
   TextShape,
   Shape,
 } from "./shapes";
-import { Point } from "@/types";
 import {
   generateShapeId,
   simplifyPoints,
 } from "@/utils/shapeHelpers";
+import { Point } from "@/utils/Point";
 
 export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
   const store = useDrawingStore();
 
   const isDrawing = ref(false);
   const isDraggingShapes = ref(false);
-  const startX = ref(0);
-  const startY = ref(0);
-  const lastX = ref(0);
-  const lastY = ref(0);
+  const start = ref<Point | null>(null);
+  const last = ref<Point | null>(null);
   const previewShape = shallowRef<Shape | null>(null);
 
   function getBaseSVGCoordinates(event: MouseEvent): Point {
     const svg = svgRef.value;
-    if (!svg) return { x: 0, y: 0 };
+    if (!svg) return new Point(0, 0);
 
     const pt = svg.createSVGPoint();
     pt.x = event.clientX;
     pt.y = event.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
-    return { x: svgP.x, y: svgP.y };
+    return new Point(svgP.x, svgP.y);
   }
 
-  function onPointerDown(x: number, y: number, event?: MouseEvent) {
+  function onPointerDown(point: Point, event?: MouseEvent) {
     if (store.currentTool === "select") {
-      handleSelectTool(x, y, event);
+      handleSelectTool(point, event);
     } else {
-      startDrawing(x, y);
+      startDrawing(point);
     }
   }
 
-  function handleSelectTool(x: number, y: number, event?: MouseEvent) {
-    const clickPoint = { x, y };
+  function handleSelectTool(point: Point, event?: MouseEvent) {
+    const clickPoint = point;
     const isShiftPressed = event?.shiftKey || false;
 
     // Find shapes that contain the click point
@@ -78,8 +76,7 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
 
       if (clickedOnSelectedShape) {
         isDraggingShapes.value = true;
-        startX.value = x;
-        startY.value = y;
+        start.value = point;
       }
       return;
     } else {
@@ -87,31 +84,27 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       if (!isShiftPressed) {
         store.clearSelection();
       }
-      store.startDragSelection(x, y);
+      store.startDragSelection(point);
       return;
     }
   }
 
-  function startDrawing(x: number, y: number) {
+  function startDrawing(point: Point) {
     // Clear selection when starting new drawing
     store.clearSelection();
 
     isDrawing.value = true;
-    startX.value = x;
-    startY.value = y;
-    lastX.value = x;
-    lastY.value = y;
+    start.value = point;
+    last.value = point;
 
-    const startPoint = { x, y };
-    const endPoint = { x, y };
     switch (store.currentTool) {
       case "line":
         previewShape.value = new LineShape(
           "preview",
           store.currentColor!,
           store.lineWidth!,
-          startPoint,
-          endPoint
+          point,
+          point
         );
         break;
       case "rectangle":
@@ -119,8 +112,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
           "preview",
           store.currentColor!,
           store.lineWidth!,
-          startPoint,
-          endPoint
+          point,
+          point
         );
         break;
       case "arrow":
@@ -128,8 +121,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
           "preview",
           store.currentColor!,
           store.lineWidth!,
-          startPoint,
-          endPoint
+          point,
+          point
         );
         break;
       case "draw":
@@ -137,30 +130,28 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
           "preview",
           store.currentColor!,
           store.lineWidth!,
-          [startPoint]
+          [point]
         );
         break;
     }
   }
 
-  function draw(x: number, y: number) {
+  function draw(point: Point) {
     // Handle drag selection
     if (store.isDragSelecting) {
-      store.updateDragSelection(x, y);
+      store.updateDragSelection(point);
       return;
     }
 
     // Handle shape dragging
     if (isDraggingShapes.value && store.selectedShapeIds.length > 0) {
-      const deltaX = x - startX.value;
-      const deltaY = y - startY.value;
+      const delta = point.minus(start.value!);
 
       store.selectedShapes.forEach((shape) => {
-        shape.move(deltaX, deltaY);
+        shape.move(delta);
       });
 
-      startX.value = x;
-      startY.value = y;
+      start.value = point;
       return;
     }
 
@@ -168,19 +159,18 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
       return;
     }
 
-    lastX.value = x;
-    lastY.value = y;
+    last.value = point;
 
     // Update preview shape
     if (previewShape.value) {
       if (previewShape.value.type === "draw") {
-        previewShape.value.push({ x, y });
+        previewShape.value.push(point);
       } else {
         const otherShape = previewShape.value as
           | LineShape
           | RectangleShape
           | ArrowShape;
-        otherShape.endPoint.value = { x, y };
+        otherShape.endPoint.value = point;
       }
     }
   }
@@ -203,8 +193,8 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     // Create the final shape
     const newShape: Shape = (() => {
       const id = generateShapeId();
-      const startPoint = { x: startX.value, y: startY.value };
-      const endPoint = { x: lastX.value, y: lastY.value };
+      const startPoint = start.value!;
+      const endPoint = last.value!;
       switch (store.currentTool) {
         case "draw":
           const preview = previewShape.value as DrawShape;
@@ -255,11 +245,11 @@ export function useCanvasDrawing(svgRef: Ref<SVGSVGElement | null>) {
     return null;
   }
 
-  function drawText(x: number, y: number, text: string): Shape {
+  function drawText(point: Point, text: string): Shape {
     const newShape = new TextShape(
       generateShapeId(),
       store.currentColor!,
-      { x, y },
+      point,
       text,
       store.fontSize!,
       store.fontFamily!

@@ -1,4 +1,4 @@
-import { ShapeData } from "@/types/shapeData";
+import { PointData, ShapeData } from "@/types/shapeData";
 import { ShapeClass } from "./Shape";
 import {
   LineShape,
@@ -9,6 +9,11 @@ import {
   ImageShape,
   CircleShape,
 } from "./index";
+import { Point } from "@/utils/Point";
+
+function toPoint(data: PointData): Point {
+  return new Point(data.x, data.y);
+}
 
 export function createShapeFromData(data: ShapeData): ShapeClass<any> {
   switch (data.type) {
@@ -17,30 +22,30 @@ export function createShapeFromData(data: ShapeData): ShapeClass<any> {
         data.id,
         data.color,
         data.lineWidth,
-        data.startPoint,
-        data.endPoint
+        toPoint(data.startPoint),
+        toPoint(data.endPoint)
       );
     case "rectangle":
       return new RectangleShape(
         data.id,
         data.color,
         data.lineWidth,
-        data.startPoint,
-        data.endPoint
+        toPoint(data.startPoint),
+        toPoint(data.endPoint)
       );
     case "arrow":
       return new ArrowShape(
         data.id,
         data.color,
         data.lineWidth,
-        data.startPoint,
-        data.endPoint
+        toPoint(data.startPoint),
+        toPoint(data.endPoint)
       );
     case "text":
       return new TextShape(
         data.id,
         data.color,
-        data.startPoint,
+        toPoint(data.startPoint),
         data.text,
         data.fontSize,
         data.fontFamily
@@ -50,13 +55,13 @@ export function createShapeFromData(data: ShapeData): ShapeClass<any> {
         data.id,
         data.color,
         data.lineWidth,
-        data.points
+        data.points.map(toPoint)
       );
     case "image":
       return new ImageShape(
         data.id,
         data.color,
-        data.startPoint,
+        toPoint(data.startPoint),
         data.imageData,
         data.imageWidth,
         data.imageHeight
@@ -66,8 +71,8 @@ export function createShapeFromData(data: ShapeData): ShapeClass<any> {
         data.id,
         data.color,
         data.lineWidth,
-        data.startPoint,
-        data.endPoint
+        toPoint(data.startPoint),
+        toPoint(data.endPoint)
       );
   }
 }

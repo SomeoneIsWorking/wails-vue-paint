@@ -3,16 +3,16 @@ import { ref, onMounted, computed } from "vue";
 import { useDrawingStore } from "@/stores/drawing";
 import { useCanvasDrawing } from "@/composables/useCanvasDrawing";
 import { useMouseInteraction } from "@/composables/useMouseInteraction";
-import type { Point } from "@/types";
 import { generateSmoothPath, findClosestSegment } from "@/utils/shapeHelpers";
+import { Point } from "@/utils/Point";
 
 const store = useDrawingStore();
 
 const svgRef = ref<SVGSVGElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const textInputVisible = ref(false);
-const textInputPosition = ref({ x: 0, y: 0 } as Point); // Screen position for display
-const textInputSVGPosition = ref({ x: 0, y: 0 } as Point); // SVG position for drawing
+const textInputPosition = ref(new Point(0, 0)); // Screen position for display
+const textInputSVGPosition = ref(new Point(0, 0)); // SVG position for drawing
 const textInputValue = ref("");
 const textInputRef = ref<HTMLTextAreaElement | null>(null);
 const panStartPoint = ref<Point | null>(null);
@@ -57,9 +57,7 @@ const allShapes = computed(() => {
 const getSVGCoordinates = (event: MouseEvent) => {
   const coords = getBaseSVGCoordinates(event);
   // Apply inverse transform
-  const adjustedX = (coords.x - store.panOffset.x) / store.zoomLevel;
-  const adjustedY = (coords.y - store.panOffset.y) / store.zoomLevel;
-  return { x: adjustedX, y: adjustedY };
+  return coords.offset(store.panOffset.scale(-1)).scale(1 / store.zoomLevel);
 };
 
 const findClickedPointIndex = (coords: Point): number => {
@@ -69,10 +67,8 @@ const findClickedPointIndex = (coords: Point): number => {
   const points = store.pointEditSelectedShape.getDraggablePoints();
   for (let i = 0; i < points.length; i++) {
     const point = points[i];
-    const dx = point.x - coords.x;
-    const dy = point.y - coords.y;
-    const distanceSquared = dx * dx + dy * dy;
-    if (distanceSquared <= 25) {
+    const delta = point.minus(coords);
+    if (delta.length <= 5) {
       // Within radius of 5
       return i;
     }
@@ -153,7 +149,7 @@ const onSelectDragStart = (coords: Point) => {
   if (store.selectedShapeIds.length === 0 && shapesAtPoint.length > 0) {
     store.selectedShapeIds.push(shapesAtPoint[0].id);
     store.isDragMoving = true;
-    start.value = { ...coords };
+    start.value = coords;
     return;
   }
   if (shapesAtPoint.length > 0) {
@@ -164,12 +160,12 @@ const onSelectDragStart = (coords: Point) => {
     if (clickedOnSelectedShape) {
       // Start dragging shapes
       store.isDragMoving = true;
-      start.value = { ...coords };
+      start.value = coords;
       return;
     }
   }
 
-  store.startDragSelection(coords.x, coords.y);
+  store.startDragSelection(coords);
 };
 
 const onPointEditDragStart = (coords: Point) => {
@@ -180,13 +176,13 @@ const onPointEditDragStart = (coords: Point) => {
   const clickedPointIndex = findClickedPointIndex(coords);
 
   if (clickedPointIndex === -1) {
-    store.startDragSelection(coords.x, coords.y);
+    store.startDragSelection(coords);
     return;
   }
   if (!store.selectedPointIndices.includes(clickedPointIndex)) {
     store.setSelectedPointIndices([clickedPointIndex]);
   }
-  start.value = { ...coords };
+  start.value = coords;
   store.isDragMoving = true;
 };
 
@@ -197,8 +193,8 @@ const onClick = (coords: Point, event: MouseEvent) => {
     onSelectClick(coords, event);
   } else if (store.currentTool === "text") {
     // Show text input at click position
-    textInputPosition.value = { x: event.clientX, y: event.clientY };
-    textInputSVGPosition.value = { x: coords.x, y: coords.y };
+    textInputPosition.value = new Point(event.clientX, event.clientY);
+    textInputSVGPosition.value = coords;
     textInputValue.value = "";
     textInputVisible.value = true;
     // Focus input after render
@@ -216,7 +212,7 @@ const onDragStart = (coords: Point) => {
     onSelectDragStart(coords);
   } else {
     // Start drawing
-    startDrawing(coords.x, coords.y);
+    startDrawing(coords);
   }
 };
 
@@ -228,22 +224,21 @@ const onDragUpdate = (coords: Point) => {
     if (store.currentTool === "pointEdit") {
       onPointEditMove(coords);
     }
-    start.value = { ...coords };
+    start.value = coords;
 
     return;
   }
   if (store.isDragSelecting) {
-    store.updateDragSelection(coords.x, coords.y);
+    store.updateDragSelection(coords);
   } else if (isCurrentlyDrawing.value) {
-    draw(coords.x, coords.y);
+    draw(coords);
   }
 };
 
 const onShapeMove = (coords: Point) => {
-  const deltaX = coords.x - start.value!.x;
-  const deltaY = coords.y - start.value!.y;
+  const delta = coords.minus(start.value!);
   store.selectedShapes.forEach((shape) => {
-    shape.move(deltaX, deltaY);
+    shape.move(delta);
   });
 };
 
@@ -267,15 +262,14 @@ const mouseInteraction = useMouseInteraction({
 });
 
 const onPointEditMove = (coords: Point) => {
-  const deltaX = coords.x - start.value!.x;
-  const deltaY = coords.y - start.value!.y;
+  const delta = coords.minus(start.value!);
   if (store.pointEditSelectedShape && store.selectedPointIndices.length > 0) {
     const draggablePoints = store.pointEditSelectedShape.getDraggablePoints();
     for (const index of store.selectedPointIndices) {
-      store.pointEditSelectedShape.updateDraggablePoint(index, {
-        x: draggablePoints[index].x + deltaX,
-        y: draggablePoints[index].y + deltaY,
-      });
+      store.pointEditSelectedShape.updateDraggablePoint(
+        index,
+        draggablePoints[index].offset(delta)
+      );
     }
   }
 };
@@ -288,7 +282,7 @@ const handleMouseDown = (event: MouseEvent) => {
   }
 
   if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
-    panStartPoint.value = { x: event.clientX, y: event.clientY };
+    panStartPoint.value = new Point(event.clientX, event.clientY);
     store.startPanning();
     event.preventDefault();
     return;
@@ -299,15 +293,13 @@ const handleMouseDown = (event: MouseEvent) => {
 
 const handleMouseMove = (event: MouseEvent) => {
   // Handle panning
+  const clientPoint = new Point(event.clientX, event.clientY);
   if (store.isPanning && panStartPoint.value) {
-    const deltaX = event.clientX - panStartPoint.value.x;
-    const deltaY = event.clientY - panStartPoint.value.y;
+    const delta = clientPoint.minus(panStartPoint.value);
+    const newPan = store.panOffset.add(delta);
+    store.setPanOffset(newPan);
 
-    const newX = store.panOffset.x + deltaX;
-    const newY = store.panOffset.y + deltaY;
-    store.setPanOffset(newX, newY);
-
-    panStartPoint.value = { x: event.clientX, y: event.clientY };
+    panStartPoint.value = clientPoint;
     return;
   }
 
@@ -361,18 +353,9 @@ const handleDoubleClick = (event: MouseEvent) => {
 const handleWheel = (event: WheelEvent) => {
   event.preventDefault();
 
-  // Zoom with ctrl/cmd + wheel
-  if (event.ctrlKey || event.metaKey) {
-    const delta = -event.deltaY * 0.001;
-    const newZoom = store.zoomLevel + delta;
-    store.setZoomLevel(newZoom);
-  } else {
-    // Pan with wheel
-    store.setPanOffset(
-      store.panOffset.x - event.deltaX,
-      store.panOffset.y - event.deltaY
-    );
-  }
+  const delta = -event.deltaY * 0.001;
+  const newZoom = store.zoomLevel + delta;
+  store.setZoomLevel(newZoom);
 };
 
 const handleTextInputKeydown = (event: KeyboardEvent) => {
@@ -404,11 +387,7 @@ const commitTextInput = () => {
       textInputSVGPosition.value.x,
       textInputSVGPosition.value.y
     );
-    drawText(
-      textInputSVGPosition.value.x,
-      textInputSVGPosition.value.y,
-      trimmedText
-    );
+    drawText(textInputSVGPosition.value, trimmedText);
   }
   cancelTextInput();
 };

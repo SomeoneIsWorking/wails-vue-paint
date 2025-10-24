@@ -1,8 +1,9 @@
 import { ref, computed, type Ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { CircleShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
 
 export class CircleShape extends ShapeClass<CircleShapeData> {
   startPoint: Ref<Point>;
@@ -29,11 +30,9 @@ export class CircleShape extends ShapeClass<CircleShapeData> {
     this.lineWidth = ref(lineWidth);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    this.startPoint.value.x += deltaX;
-    this.startPoint.value.y += deltaY;
-    this.endPoint.value.x += deltaX;
-    this.endPoint.value.y += deltaY;
+  move(delta: Vector): void {
+    this.startPoint.value = this.startPoint.value.offset(delta);
+    this.endPoint.value = this.endPoint.value.offset(delta);
   }
 
   getDraggablePoints(): Point[] {
@@ -43,11 +42,9 @@ export class CircleShape extends ShapeClass<CircleShapeData> {
   updateDraggablePoint(index: number, newPoint: Point): void {
     if (index === 0) {
       // Move center
-      const deltaX = newPoint.x - this.startPoint.value.x;
-      const deltaY = newPoint.y - this.startPoint.value.y;
+      const delta = newPoint.minus(this.startPoint.value);
       this.startPoint.value = newPoint;
-      this.endPoint.value.x += deltaX;
-      this.endPoint.value.y += deltaY;
+      this.endPoint.value = this.endPoint.value.offset(delta);
     } else if (index === 1) {
       // Resize by moving circumference point
       this.endPoint.value = newPoint;

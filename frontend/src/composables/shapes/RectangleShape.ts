@@ -1,8 +1,9 @@
 import { ref, computed, type Ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { RectangleShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Point } from "@/utils/Point";
+import { Vector } from "@/utils/Vector";
 
 export class RectangleShape extends ShapeClass<RectangleShapeData> {
   startPoint: Ref<Point>;
@@ -31,19 +32,17 @@ export class RectangleShape extends ShapeClass<RectangleShapeData> {
     this.lineWidth = ref(lineWidth);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    this.startPoint.value.x += deltaX;
-    this.startPoint.value.y += deltaY;
-    this.endPoint.value.x += deltaX;
-    this.endPoint.value.y += deltaY;
+  move(delta: Vector): void {
+    this.startPoint.value = this.startPoint.value.offset(delta);
+    this.endPoint.value = this.endPoint.value.offset(delta);
   }
 
   getDraggablePoints(): Point[] {
     return [
       this.startPoint.value,
-      { x: this.startPoint.value.x, y: this.endPoint.value.y },
+      new Point(this.startPoint.value.x, this.endPoint.value.y),
       this.endPoint.value,
-      { x: this.endPoint.value.x, y: this.startPoint.value.y },
+      new Point(this.endPoint.value.x, this.startPoint.value.y),
     ];
   }
 
@@ -55,8 +54,8 @@ export class RectangleShape extends ShapeClass<RectangleShapeData> {
         break;
       case 1:
         // Start X, End Y
-        this.startPoint.value.x = newPoint.x;
-        this.endPoint.value.y = newPoint.y;
+        this.startPoint.value = new Point(newPoint.x, this.startPoint.value.y);
+        this.endPoint.value = new Point(this.endPoint.value.x, newPoint.y);
         break;
       case 2:
         // End
@@ -64,8 +63,8 @@ export class RectangleShape extends ShapeClass<RectangleShapeData> {
         break;
       case 3:
         // End X, Start Y
-        this.endPoint.value.x = newPoint.x;
-        this.startPoint.value.y = newPoint.y;
+        this.endPoint.value = new Point(newPoint.x, this.endPoint.value.y);
+        this.startPoint.value = new Point(this.startPoint.value.x, newPoint.y);
         break;
     }
   }

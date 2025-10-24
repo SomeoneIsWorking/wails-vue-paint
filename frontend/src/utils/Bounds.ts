@@ -1,17 +1,17 @@
-import type { Point } from "@/types";
 import { drop } from "lodash-es";
+import { Point } from "./Point";
 
 export class Bounds {
   extend(amount: number): Bounds {
     return new Bounds([
-      { x: this.left - amount / 2, y: this.top - amount / 2 },
-      { x: this.right + amount / 2, y: this.bottom + amount / 2 },
+      new Point(this.left - amount / 2, this.top - amount / 2),
+      new Point(this.right + amount / 2, this.bottom + amount / 2),
     ]);
   }
-  public top: number;
-  public left: number;
-  public right: number;
-  public bottom: number;
+  readonly top: number;
+  readonly left: number;
+  readonly right: number;
+  readonly bottom: number;
 
   get width() {
     return this.right - this.left;
@@ -21,34 +21,38 @@ export class Bounds {
   }
 
   get topLeft(): Point {
-    return { x: this.left, y: this.top };
+    return new Point(this.left, this.top);
   }
 
   get topRight(): Point {
-    return { x: this.right, y: this.top };
+    return new Point(this.right, this.top);
   }
 
   get bottomLeft(): Point {
-    return { x: this.left, y: this.bottom };
+    return new Point(this.left, this.bottom);
   }
 
   get bottomRight(): Point {
-    return { x: this.right, y: this.bottom };
+    return new Point(this.right, this.bottom);
   }
 
   constructor(points: Point[]) {
     const firstPoint = points[0];
-    this.top = firstPoint.y;
-    this.left = firstPoint.x;
-    this.right = firstPoint.x;
-    this.bottom = firstPoint.y;
+    let top = firstPoint.y;
+    let left = firstPoint.x;
+    let right = firstPoint.x;
+    let bottom = firstPoint.y;
 
     for (const point of drop(points, 1)) {
-      this.left = Math.min(this.left, point.x);
-      this.top = Math.min(this.top, point.y);
-      this.right = Math.max(this.right, point.x);
-      this.bottom = Math.max(this.bottom, point.y);
+      left = Math.min(left, point.x);
+      top = Math.min(top, point.y);
+      right = Math.max(right, point.x);
+      bottom = Math.max(bottom, point.y);
     }
+    this.top = top;
+    this.left = left;
+    this.right = right;
+    this.bottom = bottom;
   }
 
   /**

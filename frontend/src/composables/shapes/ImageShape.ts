@@ -1,8 +1,9 @@
 import { ref, computed, type Ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { ImageShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
 
 export class ImageShape extends ShapeClass<ImageShapeData> {
   startPoint: Ref<Point>;
@@ -13,10 +14,9 @@ export class ImageShape extends ShapeClass<ImageShapeData> {
   protected _bounds = computed(() => {
     return new Bounds([
       this.startPoint.value,
-      {
-        x: this.startPoint.value.x + this.imageWidth.value,
-        y: this.startPoint.value.y + this.imageHeight.value,
-      },
+      this.startPoint.value.offset(
+        new Vector(this.imageWidth.value, this.imageHeight.value)
+      ),
     ]);
   });
 
@@ -36,9 +36,8 @@ export class ImageShape extends ShapeClass<ImageShapeData> {
     this.imageHeight = ref(imageHeight);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    this.startPoint.value.x += deltaX;
-    this.startPoint.value.y += deltaY;
+  move(delta: Vector): void {
+    this.startPoint.value = this.startPoint.value.offset(delta);
   }
 
   getDraggablePoints(): Point[] {
@@ -51,7 +50,7 @@ export class ImageShape extends ShapeClass<ImageShapeData> {
       { x: x + w, y }, // top-right
       { x: x + w, y: y + h }, // bottom-right
       { x, y: y + h }, // bottom-left
-    ];
+    ].map((p) => new Point(p.x, p.y));
   }
 
   updateDraggablePoint(index: number, newPoint: Point): void {
@@ -67,7 +66,7 @@ export class ImageShape extends ShapeClass<ImageShapeData> {
       this.imageHeight.value = currentH + (currentY - newPoint.y);
     } else if (index === 1) {
       // top-right
-      this.startPoint.value.y = newPoint.y;
+      this.startPoint.value = new Point(currentX, newPoint.y);
       this.imageWidth.value = newPoint.x - currentX;
       this.imageHeight.value = currentH + (currentY - newPoint.y);
     } else if (index === 2) {
@@ -76,7 +75,7 @@ export class ImageShape extends ShapeClass<ImageShapeData> {
       this.imageHeight.value = newPoint.y - currentY;
     } else if (index === 3) {
       // bottom-left
-      this.startPoint.value.x = newPoint.x;
+      this.startPoint.value = new Point(newPoint.x, currentY);
       this.imageHeight.value = newPoint.y - currentY;
       this.imageWidth.value = currentW + (currentX - newPoint.x);
     }

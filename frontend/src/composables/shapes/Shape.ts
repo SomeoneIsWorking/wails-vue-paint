@@ -1,7 +1,8 @@
 import { ref, type Ref, type ComputedRef } from "vue";
 import { ShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
-import { Point } from "@/types";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
 
 export abstract class ShapeClass<T extends ShapeData> {
   id: string;
@@ -21,7 +22,7 @@ export abstract class ShapeClass<T extends ShapeData> {
     return this._bounds.value;
   }
 
-  abstract move(deltaX: number, deltaY: number): void;
+  abstract move(delta: Vector): void;
 
   abstract getDraggablePoints(): Point[];
 

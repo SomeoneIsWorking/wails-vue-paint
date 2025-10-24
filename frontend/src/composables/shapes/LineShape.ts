@@ -1,8 +1,9 @@
 import { ref, computed, type Ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { LineShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
 
 export class LineShape extends ShapeClass<LineShapeData> {
   startPoint: Ref<Point>;
@@ -29,11 +30,9 @@ export class LineShape extends ShapeClass<LineShapeData> {
     this.lineWidth = ref(lineWidth);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    this.startPoint.value.x += deltaX;
-    this.startPoint.value.y += deltaY;
-    this.endPoint.value.x += deltaX;
-    this.endPoint.value.y += deltaY;
+  move(delta: Vector): void {
+    this.startPoint.value = this.startPoint.value.offset(delta);
+    this.endPoint.value = this.endPoint.value.offset(delta);
   }
 
   getDraggablePoints(): Point[] {

@@ -1,5 +1,5 @@
+import { Point } from "@/utils/Point";
 import { ref } from "vue";
-import type { Point } from "@/types";
 
 interface MouseInteractionOptions {
   onClick: (coords: Point, event: MouseEvent) => void;
@@ -14,7 +14,7 @@ export function useMouseInteraction(options: MouseInteractionOptions) {
   const isPotentialDrag = ref(false);
   const isDragging = ref(false);
   const dragStartPoint = ref<Point | null>(null);
-  const lastMouseCoords = ref<Point>({ x: 0, y: 0 });
+  const lastMouseCoords = ref<Point>(new Point(0, 0));
 
   const handleMouseDown = (event: MouseEvent) => {
     const coords = options.getSVGCoordinates(event);

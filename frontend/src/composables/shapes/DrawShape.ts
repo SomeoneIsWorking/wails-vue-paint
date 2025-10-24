@@ -1,8 +1,9 @@
 import { computed, type Ref, ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { DrawShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
 
 export class DrawShape extends ShapeClass<DrawShapeData> {
   points: Ref<Point[]>;
@@ -23,11 +24,8 @@ export class DrawShape extends ShapeClass<DrawShapeData> {
     this.points!.value.push(point);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    for (const point of this.points.value) {
-      point.x += deltaX;
-      point.y += deltaY;
-    }
+  move(delta: Vector): void {
+    this.points.value = this.points.value.map((point) => point.offset(delta));
   }
 
   getDraggablePoints(): Point[] {

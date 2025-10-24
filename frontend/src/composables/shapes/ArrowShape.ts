@@ -1,8 +1,10 @@
 import { ref, computed, type Ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { ArrowShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
+import { mapValues } from "lodash-es";
 
 export class ArrowShape extends ShapeClass<ArrowShapeData> {
   startPoint: Ref<Point>;
@@ -29,11 +31,9 @@ export class ArrowShape extends ShapeClass<ArrowShapeData> {
     this.lineWidth = ref(lineWidth);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    this.startPoint.value.x += deltaX;
-    this.startPoint.value.y += deltaY;
-    this.endPoint.value.x += deltaX;
-    this.endPoint.value.y += deltaY;
+  move(delta: Vector): void {
+    this.startPoint.value = this.startPoint.value.offset(delta);
+    this.endPoint.value = this.endPoint.value.offset(delta);
   }
 
   getDraggablePoints(): Point[] {
@@ -74,7 +74,10 @@ export class ArrowShape extends ShapeClass<ArrowShapeData> {
       x: end.x - arrowSize * 0.5 * Math.cos(angle),
       y: end.y - arrowSize * 0.5 * Math.sin(angle),
     };
-    return { start, end, point1, point2, end2 };
+    return mapValues(
+      { start, end, point1, point2, end2 },
+      (p) => new Point(p.x, p.y)
+    );
   });
 
   path = computed(() => {

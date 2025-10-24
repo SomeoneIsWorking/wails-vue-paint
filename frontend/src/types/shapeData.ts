@@ -1,10 +1,13 @@
-import { Point } from ".";
+export interface PointData {
+  x: number;
+  y: number;
+}
 
 export interface ImageShapeData {
   type: "image";
   id: string;
   color: string;
-  startPoint: Point;
+  startPoint: PointData;
   imageData: string;
   imageWidth: number;
   imageHeight: number;
@@ -14,7 +17,7 @@ export interface TextShapeData {
   type: "text";
   id: string;
   color: string;
-  startPoint: Point;
+  startPoint: PointData;
   text: string;
   fontSize: number;
   fontFamily: string;
@@ -25,8 +28,8 @@ export interface RectangleShapeData {
   id: string;
   color: string;
   lineWidth: number;
-  startPoint: Point;
-  endPoint: Point;
+  startPoint: PointData;
+  endPoint: PointData;
 }
 
 export interface CircleShapeData {
@@ -34,8 +37,8 @@ export interface CircleShapeData {
   id: string;
   color: string;
   lineWidth: number;
-  startPoint: Point;
-  endPoint: Point;
+  startPoint: PointData;
+  endPoint: PointData;
 }
 
 export interface LineShapeData {
@@ -43,8 +46,8 @@ export interface LineShapeData {
   id: string;
   color: string;
   lineWidth: number;
-  startPoint: Point;
-  endPoint: Point;
+  startPoint: PointData;
+  endPoint: PointData;
 }
 
 export interface ArrowShapeData {
@@ -52,8 +55,8 @@ export interface ArrowShapeData {
   id: string;
   color: string;
   lineWidth: number;
-  startPoint: Point;
-  endPoint: Point;
+  startPoint: PointData;
+  endPoint: PointData;
 }
 
 export interface DrawShapeData {
@@ -61,7 +64,7 @@ export interface DrawShapeData {
   id: string;
   color: string;
   lineWidth: number;
-  points: Point[];
+  points: PointData[];
 }
 
 export type ShapeData =

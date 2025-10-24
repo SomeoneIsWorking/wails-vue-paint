@@ -8,6 +8,8 @@ import { Bounds } from "../utils/Bounds";
 import { SaveState, LoadState } from "../../wailsjs/go/main/App";
 import { Shape } from "@/composables/shapes";
 import { createShapeFromData } from "@/composables/shapes/shapeFactory";
+import { Point } from "@/utils/Point";
+import { Vector } from "@/utils/Vector";
 
 export const useDrawingStore = defineStore("drawing", () => {
   // Tool state
@@ -30,13 +32,13 @@ export const useDrawingStore = defineStore("drawing", () => {
   const isDrawing = ref(false);
   const isDragMoving = ref(false);
   const isDragSelecting = ref(false);
-  const dragSelectStart = ref<{ x: number; y: number } | null>(null);
-  const dragSelectEnd = ref<{ x: number; y: number } | null>(null);
+  const dragSelectStart = ref<Point | null>(null);
+  const dragSelectEnd = ref<Point | null>(null);
 
   const selectedPointIndices = ref<number[]>([]);
 
   // Pan and zoom state
-  const panOffset = ref({ x: 0, y: 0 });
+  const panOffset = ref(new Vector(0, 0));
   const zoomLevel = ref(1);
   const isPanning = ref(false);
 
@@ -291,8 +293,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     saveStateToBackend();
   }
 
-  function startDragSelection(x: number, y: number) {
-    console.log("Starting drag selection at:", x, y);
+  function startDragSelection(point: Point) {
     if (currentTool.value === "pointEdit") {
       selectedPointIndices.value = [];
     } else {
@@ -301,13 +302,13 @@ export const useDrawingStore = defineStore("drawing", () => {
     }
 
     isDragSelecting.value = true;
-    dragSelectStart.value = { x, y };
-    dragSelectEnd.value = { x, y };
+    dragSelectStart.value = point;
+    dragSelectEnd.value = point;
   }
 
-  function updateDragSelection(x: number, y: number) {
+  function updateDragSelection(point: Point) {
     if (isDragSelecting.value) {
-      dragSelectEnd.value = { x, y };
+      dragSelectEnd.value = point;
     }
   }
 
@@ -347,8 +348,8 @@ export const useDrawingStore = defineStore("drawing", () => {
     isDragSelecting.value = false;
   }
 
-  function setPanOffset(x: number, y: number) {
-    panOffset.value = { x, y };
+  function setPanOffset(vector: Vector) {
+    panOffset.value = vector;
   }
 
   function setZoomLevel(zoom: number) {
@@ -376,7 +377,7 @@ export const useDrawingStore = defineStore("drawing", () => {
   function fitView(viewportWidth: number, viewportHeight: number) {
     if (shapes.value.length === 0) {
       zoomLevel.value = 1;
-      panOffset.value = { x: 0, y: 0 };
+      panOffset.value = new Vector(0, 0);
       return;
     }
 
@@ -398,7 +399,7 @@ export const useDrawingStore = defineStore("drawing", () => {
 
     if (boundsWidth === 0 || boundsHeight === 0) {
       zoomLevel.value = 1;
-      panOffset.value = { x: 0, y: 0 };
+      panOffset.value = new Vector(0, 0);
       return;
     }
 
@@ -413,7 +414,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     const panY = viewportHeight / 2 - centerY * zoom;
 
     zoomLevel.value = zoom || 1;
-    panOffset.value = { x: panX || 0, y: panY || 0 };
+    panOffset.value = new Vector(panX || 0, panY || 0);
   }
 
   // Save state to backend

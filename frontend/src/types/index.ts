@@ -1,3 +1,5 @@
+import { Point } from "@/utils/Point"
+
 export type ToolType = 
   | 'select'
   | 'text'
@@ -19,11 +21,6 @@ export interface DrawingState {
   isDrawing: boolean
   startX: number
   startY: number
-}
-
-export interface Point {
-  x: number
-  y: number
 }
 
 export interface Annotation {

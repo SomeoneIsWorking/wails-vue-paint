@@ -1,8 +1,9 @@
 import { ref, computed, type Ref } from "vue";
 import { ShapeClass } from "./Shape";
-import type { Point } from "@/types";
 import { TextShapeData } from "@/types/shapeData";
 import { Bounds } from "@/utils/Bounds";
+import { Vector } from "@/utils/Vector";
+import { Point } from "@/utils/Point";
 
 export class TextShape extends ShapeClass<TextShapeData> {
   startPoint: Ref<Point>;
@@ -15,14 +16,11 @@ export class TextShape extends ShapeClass<TextShapeData> {
     const lineHeight = this.fontSize.value;
     const maxLineLength = Math.max(...lines.map((line) => line.length));
     return new Bounds([
-      {
-        x: this.startPoint.value.x,
-        y: this.startPoint.value.y - this.fontSize.value,
-      },
-      {
-        x: this.startPoint.value.x + maxLineLength * this.fontSize.value * 0.6,
-        y: this.startPoint.value.y + lines.length * lineHeight - 10,
-      },
+      new Point(this.startPoint.value.x, this.startPoint.value.y - lineHeight),
+      new Point(
+        this.startPoint.value.x + maxLineLength * this.fontSize.value * 0.6,
+        this.startPoint.value.y + lines.length * lineHeight - 10
+      ),
     ]);
   });
 
@@ -41,9 +39,8 @@ export class TextShape extends ShapeClass<TextShapeData> {
     this.fontFamily = ref(fontFamily);
   }
 
-  move(deltaX: number, deltaY: number): void {
-    this.startPoint.value.x += deltaX;
-    this.startPoint.value.y += deltaY;
+  move(delta: Vector): void {
+    this.startPoint.value = this.startPoint.value.offset(delta);
   }
 
   getDraggablePoints(): Point[] {

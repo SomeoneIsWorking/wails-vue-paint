@@ -10,7 +10,7 @@ export class ArrowShape extends ShapeClass<ArrowShapeData> {
   lineWidth: Ref<number>;
 
   protected _bounds = computed(() => {
-    return new Bounds([this.startPoint.value, this.endPoint.value]).extend(
+    return new Bounds(Object.values(this.arrowPoints.value)).extend(
       this.lineWidth.value
     );
   });
@@ -56,11 +56,11 @@ export class ArrowShape extends ShapeClass<ArrowShapeData> {
     };
   }
 
-  arrowHeadPoints = computed((): string => {
+  arrowPoints = computed(() => {
     const start = this.startPoint.value;
     const end = this.endPoint.value;
+    const arrowSize = 5 * this.lineWidth.value;
     const angle = Math.atan2(end.y - start.y, end.x - start.x);
-    const arrowSize = 10 * this.lineWidth.value;
 
     const point1 = {
       x: end.x - arrowSize * Math.cos(angle - Math.PI / 6),
@@ -70,7 +70,21 @@ export class ArrowShape extends ShapeClass<ArrowShapeData> {
       x: end.x - arrowSize * Math.cos(angle + Math.PI / 6),
       y: end.y - arrowSize * Math.sin(angle + Math.PI / 6),
     };
+    const end2 = {
+      x: end.x - arrowSize * 0.5 * Math.cos(angle),
+      y: end.y - arrowSize * 0.5 * Math.sin(angle),
+    };
+    return { start, end, point1, point2, end2 };
+  });
 
-    return `${end.x},${end.y} ${point1.x},${point1.y} ${point2.x},${point2.y}`;
+  path = computed(() => {
+    const { start, end, point1, point2, end2 } = this.arrowPoints.value;
+
+    return [
+      `M ${[start, end2].map((p) => `${p.x},${p.y}`).join(" L ")}`,
+      `M ${[point1, end, point2, end2]
+        .map((p) => `${p.x},${p.y}`)
+        .join(" L ")}`,
+    ];
   });
 }

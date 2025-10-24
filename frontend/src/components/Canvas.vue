@@ -426,19 +426,18 @@ onMounted(async () => {
 
           <!-- Arrows -->
           <g v-else-if="shape.type === 'arrow'">
-            <line
-              :x1="shape.startPoint.value.x"
-              :y1="shape.startPoint.value.y"
-              :x2="shape.endPoint.value.x"
-              :y2="shape.endPoint.value.y"
+            <path
+              :d="shape.path.value[0]"
               :stroke="shape.color.value"
               :stroke-width="shape.lineWidth.value"
               stroke-linecap="round"
+              stroke-linejoin="bevel"
             />
-            <!-- Arrow head - computed inline -->
-            <polygon
-              :points="shape.arrowHeadPoints.value"
+            <path
+              :d="shape.path.value[1]"
               :fill="shape.color.value"
+              stroke-linecap="round"
+              stroke-linejoin="bevel"
             />
           </g>
         </g>

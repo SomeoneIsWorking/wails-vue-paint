@@ -1,3 +1,4 @@
+import { Point } from "@/utils/Point";
 import { ImageShape } from "./shapes";
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
@@ -20,7 +21,7 @@ export async function createImageShape(src: string) {
   return new ImageShape(
     "img_" + Date.now(),
     "#000000",
-    { x: 50, y: 50 },
+    new Point(0, 0),
     src,
     img.width,
     img.height

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDrawingStore } from '@/stores/drawing'
+import { Vector } from '@/utils/Vector'
 
 const store = useDrawingStore()
 
@@ -14,7 +15,7 @@ const resetZoom = () => {
 }
 
 const resetPan = () => {
-  store.setPanOffset(0, 0)
+  store.setPanOffset(new Vector(0, 0))
 }
 
 const zoomPercentage = () => Math.round(store.zoomLevel * 100)

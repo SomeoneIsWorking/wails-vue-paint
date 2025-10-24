@@ -1,5 +1,6 @@
 import { Point } from "@/utils/Point";
 import { ImageShape } from "./shapes";
+import { generateShapeId } from "@/utils/shapeHelpers";
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -19,7 +20,7 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
 export async function createImageShape(src: string) {
   const img = await loadImage(src);
   return new ImageShape(
-    "img_" + Date.now(),
+    generateShapeId(),
     "#000000",
     new Point(0, 0),
     src,

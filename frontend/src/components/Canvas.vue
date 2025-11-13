@@ -302,8 +302,9 @@ const handleMouseMove = (event: MouseEvent) => {
   const clientPoint = new Point(event.clientX, event.clientY);
   if (store.isPanning && panStartPoint.value) {
     const delta = clientPoint.minus(panStartPoint.value);
-    const newPan = store.panOffset.add(delta);
-    store.setPanOffset(newPan);
+    const unclampedPan = store.panOffset.add(delta);
+    const clamped = clampPanToViewport(unclampedPan, store.zoomLevel);
+    store.setPanOffset(clamped);
 
     panStartPoint.value = clientPoint;
     return;
@@ -368,15 +369,17 @@ const handleWheel = (event: WheelEvent) => {
 
     // Adjust pan to zoom towards the cursor position
     const zoomDelta = store.zoomLevel - newZoom;
-    const newPan = store.panOffset.add(focus.asVector().scale(zoomDelta));
-    store.setPanOffset(newPan);
+    const unclampedPan = store.panOffset.add(focus.asVector().scale(zoomDelta));
+    const clamped = clampPanToViewport(unclampedPan, newZoom);
+    store.setPanOffset(clamped);
     store.setZoomLevel(newZoom);
   } else {
     // Two-finger pan (deltaX and deltaY are present)
     // Standard mouse wheel will only have deltaY typically
     const panDelta = new Vector(-event.deltaX, -event.deltaY);
-    const newPan = store.panOffset.add(panDelta);
-    store.setPanOffset(newPan);
+    const unclampedPan = store.panOffset.add(panDelta);
+    const clamped = clampPanToViewport(unclampedPan, store.zoomLevel);
+    store.setPanOffset(clamped);
   }
 };
 
@@ -435,11 +438,43 @@ onMounted(async () => {
     store.fitView(container.clientWidth, container.clientHeight);
   }
 });
+
+// Clamp pan so at least 300px of canvas area stays visible in the viewport
+function clampPanToViewport(targetPan: Vector, zoom: number): Vector {
+  const container = containerRef.value;
+  if (!container) return targetPan;
+
+  const viewportWidth = container.clientWidth;
+  const viewportHeight = container.clientHeight;
+
+  const { x: cx, y: cy, width: cw, height: ch } = store.canvasBounds;
+  const buffer = 100;
+
+  // Screen-space position after transform: translate(pan.x, pan.y) scale(zoom)
+  // left = pan.x + cx*zoom, right = pan.x + (cx+cw)*zoom
+  // top = pan.y + cy*zoom, bottom = pan.y + (cy+ch)*zoom
+
+  let clampedX = targetPan.x;
+  let clampedY = targetPan.y;
+
+  // Clamp X: keep at least 300px of canvas visible
+  const minPanX = buffer - (cx + cw) * zoom;        // right edge at 300px from left
+  const maxPanX = viewportWidth - buffer - cx * zoom; // left edge at 300px from right
+  clampedX = Math.min(Math.max(targetPan.x, minPanX), maxPanX);
+
+  // Clamp Y: keep at least 300px of canvas visible
+  const minPanY = buffer - (cy + ch) * zoom;        // bottom edge at 300px from top
+  const maxPanY = viewportHeight - buffer - cy * zoom; // top edge at 300px from bottom
+  clampedY = Math.min(Math.max(targetPan.y, minPanY), maxPanY);
+
+  return new Vector(clampedX, clampedY);
+}
 </script>
 
 <template>
   <div
     ref="containerRef"
+    id="canvas-container"
     class="flex-1 relative overflow-hidden bg-gray-100 dark:bg-gray-900"
   >
     <svg
@@ -466,6 +501,7 @@ onMounted(async () => {
             width="20"
             height="20"
             patternUnits="userSpaceOnUse"
+            :patternTransform="`scale(${1 / store.zoomLevel})`"
           >
             <rect x="0" y="0" width="10" height="10" fill="#E5E7EB" />
             <rect x="10" y="0" width="10" height="10" fill="#F3F4F6" />

@@ -15,7 +15,18 @@ const resetZoom = () => {
 }
 
 const resetPan = () => {
-  store.setPanOffset(new Vector(0, 0))
+  const container = document.getElementById('canvas-container') as HTMLDivElement | null
+  if (!container) {
+    store.setPanOffset(new Vector(0, 0))
+    return
+  }
+
+  const { x: cx, y: cy, width: cw, height: ch } = store.canvasBounds
+  const zoom = store.zoomLevel
+  const panX = container.clientWidth / 2 - (cx + cw / 2) * zoom
+  const panY = container.clientHeight / 2 - (cy + ch / 2) * zoom
+
+  store.setPanOffset(new Vector(panX, panY))
 }
 
 const zoomPercentage = () => Math.round(store.zoomLevel * 100)

@@ -432,8 +432,6 @@ export const useDrawingStore = defineStore("drawing", () => {
         smoothing: smoothing.value,
         selectionTolerance: selectionTolerance.value,
         selectedShapeIds: selectedShapeIds.value,
-        panOffset: panOffset.value,
-        zoomLevel: zoomLevel.value,
         selectedPointIndices: selectedPointIndices.value,
         canvasBounds: canvasBounds.value,
         cropViewport: cropViewport.value,
@@ -461,11 +459,12 @@ export const useDrawingStore = defineStore("drawing", () => {
         smoothing.value = state.smoothing || 2;
         selectionTolerance.value = state.selectionTolerance ?? 50;
         selectedShapeIds.value = state.selectedShapeIds || [];
-        panOffset.value = state.panOffset || { x: 0, y: 0 };
-        zoomLevel.value = state.zoomLevel || 1;
         selectedPointIndices.value = state.selectedPointIndices || [];
         canvasBounds.value = state.canvasBounds || { x: 0, y: 0, width: 800, height: 600 };
         cropViewport.value = state.cropViewport ?? true;
+        // Reset zoom to 100% and pan to center on load
+        zoomLevel.value = 1;
+        panOffset.value = new Vector(0, 0);
       }
     } catch (error) {
       console.error("Failed to load state:", error);

@@ -4,14 +4,28 @@ import (
 	"embed"
 
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+func createMenu(app *App) *menu.Menu {
+	menuBar := menu.NewMenu()
+
+	// Canvas menu
+	canvasMenu := menuBar.AddSubmenu("Canvas")
+	canvasMenu.AddText("Resize Canvas", nil, func(_ *menu.CallbackData) {
+		runtime.EventsEmit(app.ctx, "openCanvasResizeDialog", nil)
+	})
+
+	return menuBar
+}
 
 func main() {
 	// Create an instance of the app structure
@@ -22,6 +36,7 @@ func main() {
 		Title:  "Paint App",
 		Width:  1200,
 		Height: 800,
+		Menu:   createMenu(app),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

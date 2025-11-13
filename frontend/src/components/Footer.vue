@@ -38,6 +38,21 @@ const zoomPercentage = () => Math.round(store.zoomLevel * 100)
           Pan: Shift+Drag or Middle Mouse
         </span>
       </div>
+      <div class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="cropViewport"
+          :checked="store.cropViewport"
+          @change="store.setCropViewport(($event.target as HTMLInputElement).checked)"
+          class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 cursor-pointer"
+        />
+        <label
+          for="cropViewport"
+          class="text-xs text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+        >
+          Crop Viewport
+        </label>
+      </div>
     </div>
     
     <div class="flex items-center gap-3">

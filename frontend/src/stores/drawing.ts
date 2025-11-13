@@ -40,6 +40,10 @@ export const useDrawingStore = defineStore("drawing", () => {
   const zoomLevel = ref(1);
   const isPanning = ref(false);
 
+  // Canvas bounds
+  const canvasBounds = ref({ x: 0, y: 0, width: 800, height: 600 });
+  const cropViewport = ref(true);
+
   // Debounce timeout for backend saves
   const saveTimeout = ref<number | null>(null);
 
@@ -352,6 +356,16 @@ export const useDrawingStore = defineStore("drawing", () => {
     isPanning.value = false;
   }
 
+  function setCanvasBounds(bounds: { x: number; y: number; width: number; height: number }) {
+    canvasBounds.value = bounds;
+    saveStateToBackend();
+  }
+
+  function setCropViewport(enabled: boolean) {
+    cropViewport.value = enabled;
+    saveStateToBackend();
+  }
+
   function setPointEditSelectedShape(shapeId: string | null) {
     selectedShapeIds.value = shapeId ? [shapeId] : [];
     selectedPointIndices.value = [];
@@ -421,6 +435,8 @@ export const useDrawingStore = defineStore("drawing", () => {
         panOffset: panOffset.value,
         zoomLevel: zoomLevel.value,
         selectedPointIndices: selectedPointIndices.value,
+        canvasBounds: canvasBounds.value,
+        cropViewport: cropViewport.value,
       };
       await SaveState(JSON.stringify(state));
     } catch (error) {
@@ -448,6 +464,8 @@ export const useDrawingStore = defineStore("drawing", () => {
         panOffset.value = state.panOffset || { x: 0, y: 0 };
         zoomLevel.value = state.zoomLevel || 1;
         selectedPointIndices.value = state.selectedPointIndices || [];
+        canvasBounds.value = state.canvasBounds || { x: 0, y: 0, width: 800, height: 600 };
+        cropViewport.value = state.cropViewport ?? true;
       }
     } catch (error) {
       console.error("Failed to load state:", error);
@@ -473,6 +491,8 @@ export const useDrawingStore = defineStore("drawing", () => {
     zoomLevel,
     isPanning,
     selectedPointIndices,
+    canvasBounds,
+    cropViewport,
 
     // Computed
     selectedShapes,
@@ -512,5 +532,7 @@ export const useDrawingStore = defineStore("drawing", () => {
     setSelectedPointIndices,
     fitView,
     saveStateToBackend,
+    setCanvasBounds,
+    setCropViewport,
   };
 });

@@ -446,7 +446,40 @@ onMounted(async () => {
       }"
     >
       <g class="svg-content" :transform="contentTransform">
+        <!-- Canvas bounds background -->
+        <defs>
+          <pattern id="transparency-grid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="10" height="10" fill="#E5E7EB" />
+            <rect x="10" y="0" width="10" height="10" fill="#F3F4F6" />
+            <rect x="0" y="10" width="10" height="10" fill="#F3F4F6" />
+            <rect x="10" y="10" width="10" height="10" fill="#E5E7EB" />
+          </pattern>
+        </defs>
+        <rect
+          :x="store.canvasBounds.x"
+          :y="store.canvasBounds.y"
+          :width="store.canvasBounds.width"
+          :height="store.canvasBounds.height"
+          fill="url(#transparency-grid)"
+          stroke="#CBD5E1"
+          stroke-width="2"
+          stroke-dasharray="8,4"
+        />
+
+        <!-- Clipping group for shapes -->
+        <defs v-if="store.cropViewport">
+          <clipPath id="canvas-clip">
+            <rect
+              :x="store.canvasBounds.x"
+              :y="store.canvasBounds.y"
+              :width="store.canvasBounds.width"
+              :height="store.canvasBounds.height"
+            />
+          </clipPath>
+        </defs>
+
         <!-- Render all shapes including preview -->
+        <g :clip-path="store.cropViewport ? 'url(#canvas-clip)' : undefined">
         <g
           v-for="shape in allShapes"
           :key="shape.id"
@@ -534,8 +567,9 @@ onMounted(async () => {
             />
           </g>
         </g>
+        </g>
 
-        <!-- Selection boxes -->
+        <!-- Selection boxes (outside clipping) -->
         <rect
           v-for="(bounds, index) in selectionBounds"
           v-if="store.currentTool === 'select'"
@@ -551,7 +585,7 @@ onMounted(async () => {
           pointer-events="none"
         />
 
-        <!-- Drag selection box -->
+        <!-- Drag selection box (outside clipping) -->
         <rect
           v-if="store.isDragSelecting && store.dragSelectBounds"
           class="drag-selection-box"
@@ -566,7 +600,7 @@ onMounted(async () => {
           pointer-events="none"
         />
 
-        <!-- Preview boxes for drag selection -->
+        <!-- Preview boxes for drag selection (outside clipping) -->
         <rect
           v-for="(bounds, index) in previewBounds"
           :key="'preview-' + index"
@@ -582,7 +616,7 @@ onMounted(async () => {
           pointer-events="none"
         />
 
-        <!-- Draggable points for point edit -->
+        <!-- Draggable points for point edit (outside clipping) -->
         <g
           v-if="
             store.currentTool === 'pointEdit' && store.pointEditSelectedShape

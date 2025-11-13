@@ -5,6 +5,7 @@ import Toolbar from "./components/Toolbar.vue";
 import ColorPicker from "./components/ColorPicker.vue";
 import PropertyPanel from "./components/PropertyPanel.vue";
 import Footer from "./components/Footer.vue";
+import CanvasResizeDialog from "./components/CanvasResizeDialog.vue";
 import { useDrawingStore } from "./stores/drawing";
 
 // @ts-ignore
@@ -181,6 +182,8 @@ onUnmounted(() => {
     </div>
 
     <Footer />
+
+    <CanvasResizeDialog />
   </div>
 </template>
 

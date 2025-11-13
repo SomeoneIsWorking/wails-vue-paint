@@ -198,3 +198,16 @@ func (a *App) LoadState() (string, error) {
 	fmt.Printf("[LoadState] State loaded successfully from %s\n", stateFile)
 	return string(data), nil
 }
+
+// CanvasSize represents canvas dimensions
+type CanvasSize struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
+// ShowCanvasSizeMenu displays a menu for canvas size selection
+func (a *App) ShowCanvasSizeMenu(x int, y int) (CanvasSize, error) {
+	// This is a placeholder that returns a default size
+	// The actual menu will be handled via Wails events from frontend
+	return CanvasSize{Width: 800, Height: 600}, nil
+}

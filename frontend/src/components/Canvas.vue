@@ -5,6 +5,7 @@ import { useCanvasDrawing } from "@/composables/useCanvasDrawing";
 import { useMouseInteraction } from "@/composables/useMouseInteraction";
 import { generateSmoothPath, findClosestSegment } from "@/utils/shapeHelpers";
 import { Point } from "@/utils/Point";
+import { Vector } from "@/utils/Vector";
 
 const store = useDrawingStore();
 
@@ -358,15 +359,25 @@ const handleDoubleClick = (event: MouseEvent) => {
 const handleWheel = (event: WheelEvent) => {
   event.preventDefault();
 
-  const focus = getSVGCoordinates(event);
-  const delta = -event.deltaY * 0.001;
-  const newZoom = store.zoomLevel + delta;
+  // Detect pinch zoom (ctrlKey is set on macOS for pinch gestures)
+  if (event.ctrlKey) {
+    // Pinch zoom
+    const focus = getSVGCoordinates(event);
+    const delta = -event.deltaY * 0.01;
+    const newZoom = store.zoomLevel * (1 + delta);
 
-  // Adjust pan to zoom towards the mouse position
-  const zoomDelta = store.zoomLevel - newZoom;
-  const newPan = store.panOffset.add(focus.asVector().scale(zoomDelta));
-  store.setPanOffset(newPan);
-  store.setZoomLevel(newZoom);
+    // Adjust pan to zoom towards the cursor position
+    const zoomDelta = store.zoomLevel - newZoom;
+    const newPan = store.panOffset.add(focus.asVector().scale(zoomDelta));
+    store.setPanOffset(newPan);
+    store.setZoomLevel(newZoom);
+  } else {
+    // Two-finger pan (deltaX and deltaY are present)
+    // Standard mouse wheel will only have deltaY typically
+    const panDelta = new Vector(-event.deltaX, -event.deltaY);
+    const newPan = store.panOffset.add(panDelta);
+    store.setPanOffset(newPan);
+  }
 };
 
 const handleTextInputKeydown = (event: KeyboardEvent) => {
@@ -448,7 +459,14 @@ onMounted(async () => {
       <g class="svg-content" :transform="contentTransform">
         <!-- Canvas bounds background -->
         <defs>
-          <pattern id="transparency-grid" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+          <pattern
+            id="transparency-grid"
+            x="0"
+            y="0"
+            width="20"
+            height="20"
+            patternUnits="userSpaceOnUse"
+          >
             <rect x="0" y="0" width="10" height="10" fill="#E5E7EB" />
             <rect x="10" y="0" width="10" height="10" fill="#F3F4F6" />
             <rect x="0" y="10" width="10" height="10" fill="#F3F4F6" />
@@ -480,93 +498,93 @@ onMounted(async () => {
 
         <!-- Render all shapes including preview -->
         <g :clip-path="store.cropViewport ? 'url(#canvas-clip)' : undefined">
-        <g
-          v-for="shape in allShapes"
-          :key="shape.id"
-          :data-shape-id="shape.id"
-          :style="shape.id === 'preview' ? { opacity: 0.7 } : {}"
-        >
-          <!-- Lines -->
-          <line
-            v-if="shape.type === 'line'"
-            :x1="shape.startPoint.value.x"
-            :y1="shape.startPoint.value.y"
-            :x2="shape.endPoint.value.x"
-            :y2="shape.endPoint.value.y"
-            :stroke="shape.color.value"
-            :stroke-width="shape.lineWidth.value"
-            stroke-linecap="round"
-          />
-
-          <!-- Rectangles -->
-          <rect
-            v-else-if="shape.type === 'rectangle'"
-            :x="shape.drawBounds.value.left"
-            :y="shape.drawBounds.value.top"
-            :width="shape.drawBounds.value.width"
-            :height="shape.drawBounds.value.height"
-            :stroke="shape.color.value"
-            :stroke-width="shape.lineWidth.value"
-            fill="none"
-          />
-
-          <!-- Freehand drawing -->
-          <path
-            v-else-if="shape.type === 'draw'"
-            :d="generateSmoothPath(shape.points.value)"
-            :stroke="shape.color.value"
-            :stroke-width="shape.lineWidth.value"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            fill="none"
-          />
-
-          <!-- Text -->
-          <text
-            v-else-if="shape.type === 'text'"
-            :x="shape.startPoint.value.x"
-            :y="shape.startPoint.value.y"
-            :fill="shape.color.value"
-            :font-size="shape.fontSize?.value || 16"
-            :font-family="shape.fontFamily?.value || 'Arial'"
+          <g
+            v-for="shape in allShapes"
+            :key="shape.id"
+            :data-shape-id="shape.id"
+            :style="shape.id === 'preview' ? { opacity: 0.7 } : {}"
           >
-            <tspan
-              v-for="(line, index) in shape.text.value.split('\n')"
-              :key="index"
-              :x="shape.startPoint.value.x"
-              :dy="index === 0 ? 0 : (shape.fontSize?.value || 16) * 1.2"
-            >
-              {{ line }}
-            </tspan>
-          </text>
-
-          <!-- Images -->
-          <image
-            v-else-if="shape.type === 'image'"
-            :href="shape.imageData.value"
-            :x="shape.bounds.left"
-            :y="shape.bounds.top"
-            :width="shape.bounds.width"
-            :height="shape.bounds.height"
-          />
-
-          <!-- Arrows -->
-          <g v-else-if="shape.type === 'arrow'">
-            <path
-              :d="shape.path.value[0]"
+            <!-- Lines -->
+            <line
+              v-if="shape.type === 'line'"
+              :x1="shape.startPoint.value.x"
+              :y1="shape.startPoint.value.y"
+              :x2="shape.endPoint.value.x"
+              :y2="shape.endPoint.value.y"
               :stroke="shape.color.value"
               :stroke-width="shape.lineWidth.value"
               stroke-linecap="round"
-              stroke-linejoin="bevel"
             />
+
+            <!-- Rectangles -->
+            <rect
+              v-else-if="shape.type === 'rectangle'"
+              :x="shape.drawBounds.value.left"
+              :y="shape.drawBounds.value.top"
+              :width="shape.drawBounds.value.width"
+              :height="shape.drawBounds.value.height"
+              :stroke="shape.color.value"
+              :stroke-width="shape.lineWidth.value"
+              fill="none"
+            />
+
+            <!-- Freehand drawing -->
             <path
-              :d="shape.path.value[1]"
-              :fill="shape.color.value"
+              v-else-if="shape.type === 'draw'"
+              :d="generateSmoothPath(shape.points.value)"
+              :stroke="shape.color.value"
+              :stroke-width="shape.lineWidth.value"
               stroke-linecap="round"
-              stroke-linejoin="bevel"
+              stroke-linejoin="round"
+              fill="none"
             />
+
+            <!-- Text -->
+            <text
+              v-else-if="shape.type === 'text'"
+              :x="shape.startPoint.value.x"
+              :y="shape.startPoint.value.y"
+              :fill="shape.color.value"
+              :font-size="shape.fontSize?.value || 16"
+              :font-family="shape.fontFamily?.value || 'Arial'"
+            >
+              <tspan
+                v-for="(line, index) in shape.text.value.split('\n')"
+                :key="index"
+                :x="shape.startPoint.value.x"
+                :dy="index === 0 ? 0 : (shape.fontSize?.value || 16) * 1.2"
+              >
+                {{ line }}
+              </tspan>
+            </text>
+
+            <!-- Images -->
+            <image
+              v-else-if="shape.type === 'image'"
+              :href="shape.imageData.value"
+              :x="shape.bounds.left"
+              :y="shape.bounds.top"
+              :width="shape.bounds.width"
+              :height="shape.bounds.height"
+            />
+
+            <!-- Arrows -->
+            <g v-else-if="shape.type === 'arrow'">
+              <path
+                :d="shape.path.value[0]"
+                :stroke="shape.color.value"
+                :stroke-width="shape.lineWidth.value"
+                stroke-linecap="round"
+                stroke-linejoin="bevel"
+              />
+              <path
+                :d="shape.path.value[1]"
+                :fill="shape.color.value"
+                stroke-linecap="round"
+                stroke-linejoin="bevel"
+              />
+            </g>
           </g>
-        </g>
         </g>
 
         <!-- Selection boxes (outside clipping) -->
